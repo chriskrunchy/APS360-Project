@@ -95,3 +95,33 @@ for epoch in range(num_epochs):
 
         # gradient descent or adam step
         optimizer.step()  # we are using adam here
+
+
+# Check accuracy on training & test to see how good our model works
+def check_accuracy(loader, model):
+    if loader.dataset.train:
+        print("Checking accuracy on training data")
+    else:
+        print("Checking accuracy on test data")
+
+    num_correct = 0
+    num_samples = 0
+    model.eval()
+
+    with torch.no_grad():
+        for x, y in loader:
+            x = x.to(device=device)
+            y = y.to(device=device)
+
+            scores = model(x)
+            _, predictions = scores.max(1)
+            num_correct += (predictions == y).sum()
+            num_samples += (predictions.size(0))
+        print(
+            f'Got {num_correct} / {num_samples} with accuracy {float(num_correct) / float(num_samples) * 100:.2f}')
+
+    model.train()
+
+
+check_accuracy(train_loader, model)
+check_accuracy(test_loader, model)
