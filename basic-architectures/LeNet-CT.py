@@ -86,7 +86,6 @@ transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
-
 # Load Data
 train_dataset = CTDataset(
     root_dir='data/cancer-tumor-aneurysm-ct-dataset', transform=transform)
@@ -97,15 +96,12 @@ test_dataset = CTDataset(
 test_loader = DataLoader(dataset=test_dataset,
                          batch_size=batch_size, shuffle=True)
 
-
 # Initiate Network
 model = LeNet().to(device)
-
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
 
 # Train Network
 for epoch in range(num_epochs):
