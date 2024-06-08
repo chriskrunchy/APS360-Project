@@ -52,3 +52,9 @@ num_classes = 10
 learning_rate = 0.001
 batch_size = 64
 num_epochs = 5
+
+# Transform with Padding
+transform = transforms.Compose([
+    transforms.Pad(2),  # Pad the image to 32x32
+    transforms.ToTensor()
+])
