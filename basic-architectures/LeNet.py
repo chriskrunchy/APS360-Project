@@ -68,3 +68,11 @@ test_dataset = datasets.MNIST(
     root='dataset/', train=False, transform=transform, download=True)
 test_loader = DataLoader(dataset=test_dataset,
                          batch_size=batch_size, shuffle=True)
+
+# Initiate Network
+# model = CNN(in_channels=in_channels, num_classes=num_classes).to(device)
+model = LeNet().to(device)  # already set the parameters by default
+
+# Loss and optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
