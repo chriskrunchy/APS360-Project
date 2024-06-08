@@ -74,8 +74,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 in_channels = 1
 num_classes = 3
 learning_rate = 0.001
-batch_size = 64
-num_epochs = 5
+batch_size = 16
+num_epochs = 10
 
 
 # Transform with Padding
