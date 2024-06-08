@@ -68,7 +68,7 @@ class CTDataset(Dataset):
 
 # Set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+print('cuda') if torch.cuda.is_available() else print('cpu')
 
 # Hyperparameters
 in_channels = 1
