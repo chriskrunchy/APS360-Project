@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 
-# LeNet archintecture
+# LeNet architecture
 # 1x32x32 Input -> (5x5),s=1,p=0 -> avg pool s=2,p=0 -> (5x5),s=1,p=0 -> avg pool s=2,p=0
 # -> Conv 5x5 to 120 channels x Linear 84 x Linear 10
 
@@ -41,3 +41,14 @@ class LeNet(nn.Module):
 # x = torch.randn(64, 1, 32, 32)
 # model = LeNet()
 # print(model(x).shape) # torch.Size([64, 10])
+
+
+# Set device
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Hyperparameters
+in_channels = 1
+num_classes = 10
+learning_rate = 0.001
+batch_size = 64
+num_epochs = 5
