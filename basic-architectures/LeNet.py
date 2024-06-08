@@ -76,3 +76,22 @@ model = LeNet().to(device)  # already set the parameters by default
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+
+# Train Network
+for epoch in range(num_epochs):
+    for batch_idx, (data, targets) in enumerate(train_loader):
+        # Get data to cuda if possible
+        data = data.to(device=device)
+        targets = targets.to(device=device)
+
+        # forward
+        scores = model(data)
+        loss = criterion(scores, targets)
+
+        # backward
+        optimizer.zero_grad()
+        loss.backward()
+
+        # gradient descent or adam step
+        optimizer.step()  # we are using adam here
