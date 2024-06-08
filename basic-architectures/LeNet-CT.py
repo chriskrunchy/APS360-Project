@@ -76,8 +76,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 in_channels = 1
 num_classes = 3
 learning_rate = 0.001
-batch_size = 64
-num_epochs = 5
+batch_size = 20
+num_epochs = 10
 
 
 # Transform with Padding and Resizing
@@ -85,6 +85,7 @@ transform = transforms.Compose([
     transforms.Resize((32, 32)),  # Resize the image to 32x32
     transforms.ToTensor()
 ])
+
 
 # Load Data
 train_dataset = CTDataset(
@@ -96,12 +97,15 @@ test_dataset = CTDataset(
 test_loader = DataLoader(dataset=test_dataset,
                          batch_size=batch_size, shuffle=True)
 
+
 # Initiate Network
 model = LeNet().to(device)
+
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
 
 # Train Network
 for epoch in range(num_epochs):
