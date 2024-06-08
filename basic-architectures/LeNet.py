@@ -74,7 +74,7 @@ test_loader = DataLoader(dataset=test_dataset,
 model = LeNet().to(device)  # already set the parameters by default
 
 # Loss and optimizer
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss()  # for classification
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 
