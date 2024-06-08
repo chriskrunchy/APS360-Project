@@ -1,12 +1,39 @@
 # Imports
-import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
-from PIL import Image
+from torch.utils.data import DataLoader, Dataset, random_split
 import torchvision.transforms as transforms
+from PIL import Image
+import os
+
+
+# LeNet architecture
+class LeNet(nn.Module):
+    def __init__(self):
+        super(LeNet, self).__init__()
+        self.c1 = nn.Conv2d(in_channels=1, out_channels=6,
+                            kernel_size=5, stride=1, padding=0)
+        self.s2 = nn.AvgPool2d(kernel_size=2, stride=2)
+        self.c3 = nn.Conv2d(in_channels=6, out_channels=16,
+                            kernel_size=5, stride=1, padding=0)
+        self.s4 = nn.AvgPool2d(kernel_size=2, stride=2)  # same as s2
+        self.c5 = nn.Conv2d(in_channels=16, out_channels=120,
+                            kernel_size=5, stride=1, padding=0)
+        self.f6 = nn.Linear(in_features=120*1*1, out_features=84)
+        self.out = nn.Linear(in_features=84, out_features=3)  # 3 classes
+
+    def forward(self, x):
+        x = F.relu(self.c1(x))
+        x = self.s2(x)
+        x = F.relu(self.c3(x))
+        x = self.s4(x)
+        x = F.relu(self.c5(x))  # num_examples x 120 x 1 x 1
+        x = x.reshape(x.shape[0], -1)  # --> num_examples x 120
+        x = F.relu(self.f6(x))
+        x = self.out(x)
+        return x
 
 
 # Custom dataset for CT images
@@ -21,7 +48,6 @@ class CTDataset(Dataset):
         for label, class_name in enumerate(class_names):
             class_dir = os.path.join(root_dir, 'files', class_name)
             for file_name in os.listdir(class_dir):
-                # Assuming images are in .jpg format
                 if file_name.endswith('.jpg'):
                     self.image_files.append(os.path.join(class_dir, file_name))
                     self.labels.append(label)
@@ -40,34 +66,6 @@ class CTDataset(Dataset):
         return image, label
 
 
-# LeNet architecture
-class LeNet(nn.Module):
-    def __init__(self):
-        super(LeNet, self).__init__()
-        self.c1 = nn.Conv2d(in_channels=1, out_channels=6,
-                            kernel_size=(5, 5), stride=(1, 1), padding=(0, 0))
-        self.s2 = nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 2))
-        self.c3 = nn.Conv2d(in_channels=6, out_channels=16,
-                            kernel_size=(5, 5), stride=(1, 1), padding=(0, 0))
-        self.s4 = nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 2))  # same as s2
-        self.c5 = nn.Conv2d(in_channels=16, out_channels=120,
-                            kernel_size=(5, 5), stride=(1, 1), padding=(0, 0))
-        self.f6 = nn.Linear(in_features=120, out_features=84)
-        # Adjusted for 3 classes
-        self.out = nn.Linear(in_features=84, out_features=3)
-
-    def forward(self, x):
-        x = F.relu(self.c1(x))
-        x = self.s2(x)
-        x = F.relu(self.c3(x))
-        x = self.s4(x)
-        x = F.relu(self.c5(x))  # num_examples x 120 x 1 x 1
-        x = x.reshape(x.shape[0], -1)  # --> num_examples x 120
-        x = F.relu(self.f6(x))
-        x = self.out(x)
-        return x
-
-
 # Set device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -76,26 +74,30 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 in_channels = 1
 num_classes = 3
 learning_rate = 0.001
-batch_size = 20
-num_epochs = 10
+batch_size = 64
+num_epochs = 5
 
 
-# Transform with Padding and Resizing
+# Transform with Padding
 transform = transforms.Compose([
-    transforms.Resize((32, 32)),  # Resize the image to 32x32
+    transforms.Resize((32, 32)),
     transforms.ToTensor()
 ])
 
 
 # Load Data
-train_dataset = CTDataset(
-    root_dir='data/cancer-tumor-aneurysm-ct-dataset', transform=transform)
+dataset = CTDataset(
+    root_dir='data/cancer-tumor-aneurysm-ct-dataset/', transform=transform)
+
+# Split dataset into training and test sets
+train_size = int(0.8 * len(dataset))
+test_size = len(dataset) - train_size
+train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+
 train_loader = DataLoader(dataset=train_dataset,
                           batch_size=batch_size, shuffle=True)
-test_dataset = CTDataset(
-    root_dir='data/cancer-tumor-aneurysm-ct-dataset', transform=transform)
 test_loader = DataLoader(dataset=test_dataset,
-                         batch_size=batch_size, shuffle=True)
+                         batch_size=batch_size, shuffle=False)
 
 
 # Initiate Network
@@ -103,33 +105,31 @@ model = LeNet().to(device)
 
 
 # Loss and optimizer
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss()  # for classification
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 
 # Train Network
 for epoch in range(num_epochs):
     for batch_idx, (data, targets) in enumerate(train_loader):
-        # Get data to cuda if possible
-        data = data.to(device=device)
-        targets = targets.to(device=device)
+        data = data.to(device)
+        targets = targets.to(device)
 
-        # forward
+        # Forward pass
         scores = model(data)
         loss = criterion(scores, targets)
 
-        # backward
+        # Backward pass
         optimizer.zero_grad()
         loss.backward()
 
-        # gradient descent or adam step
+        # Gradient descent or adam step
         optimizer.step()
 
 
 # Check accuracy on training & test to see how good our model works
-# Updated check_accuracy function
-def check_accuracy(loader, model, is_train=True):
-    if is_train:
+def check_accuracy(loader, model):
+    if loader.dataset == train_dataset:
         print("Checking accuracy on training data")
     else:
         print("Checking accuracy on test data")
@@ -140,19 +140,19 @@ def check_accuracy(loader, model, is_train=True):
 
     with torch.no_grad():
         for x, y in loader:
-            x = x.to(device=device)
-            y = y.to(device=device)
+            x = x.to(device)
+            y = y.to(device)
 
             scores = model(x)
             _, predictions = scores.max(1)
             num_correct += (predictions == y).sum()
             num_samples += predictions.size(0)
-        print(
-            f'Got {num_correct} / {num_samples} with accuracy {float(num_correct) / float(num_samples) * 100:.2f}')
+
+        accuracy = float(num_correct) / float(num_samples) * 100
+        print(f'Got {num_correct} / {num_samples} with accuracy {accuracy:.2f}%')
 
     model.train()
 
 
-# Call check_accuracy with the appropriate flag
-check_accuracy(train_loader, model, is_train=True)
-check_accuracy(test_loader, model, is_train=False)
+check_accuracy(train_loader, model)
+check_accuracy(test_loader, model)
