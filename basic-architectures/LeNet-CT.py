@@ -127,6 +127,7 @@ for epoch in range(num_epochs):
 
 
 # Check accuracy on training & test to see how good our model works
+# Updated check_accuracy function
 def check_accuracy(loader, model, is_train=True):
     if is_train:
         print("Checking accuracy on training data")
@@ -152,5 +153,6 @@ def check_accuracy(loader, model, is_train=True):
     model.train()
 
 
+# Call check_accuracy with the appropriate flag
 check_accuracy(train_loader, model, is_train=True)
 check_accuracy(test_loader, model, is_train=False)
