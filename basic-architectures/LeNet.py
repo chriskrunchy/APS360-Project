@@ -123,5 +123,5 @@ def check_accuracy(loader, model):
     model.train()
 
 
-check_accuracy(train_loader, model)
-check_accuracy(test_loader, model)
+check_accuracy(train_loader, model)  # Got 59378 / 60000 with accuracy 98.96
+check_accuracy(test_loader, model)  # Got 9871 / 10000 with accuracy 98.71
