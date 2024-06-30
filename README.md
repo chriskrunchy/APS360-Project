@@ -24,11 +24,23 @@ The model is trained and evaluated on the [RSNA 2024 Lumbar Spine Degenerative C
 - **Labels**: Multiple degenerative categories of the lumbar spine.
 - **Objective**: To classify each MRI scan into the correct category based on visual degenerative features.
 
-## Usage
-To use this repository, clone it and install the required dependencies as listed in `requirements.txt`. Follow the instructions in `train.py` to start training the model on the RSNA dataset. For inference, use `predict.py` by providing the path to your MRI scan image.
+# Architecture 2: ResNet Inspired Image Classification Architecture
 
-## Contributions
-Contributions to this project are welcome. You can contribute by improving the model's architecture, optimizing training procedures, or suggesting better data augmentation techniques.
+## Overview
+This repository houses the implementation of a ResNet-inspired deep learning model specifically tailored for image classification tasks. The model leverages the deep residual learning framework to effectively handle the vanishing gradients problem, enabling the training of much deeper networks than was previously feasible.
 
-## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+## Model Architecture
+Originally designed for image recognition, ResNet (Residual Network) uses shortcut connections or skip connections to skip one or more layers. Our adaptation, referred to as `ResNet_Classification`, modifies the conventional ResNet architecture to enhance its applicability for classifying images into multiple categories.
+
+### Key Modifications
+- **Residual Blocks**: Enhanced to extract features while maintaining the network's depth, essential for learning complex patterns.
+- **Adaptive Pooling**: Placed before the final classification layer to ensure feature summarization is effective regardless of image dimensions.
+- **Classification Layer**: Transforms the pooled features into final class scores, adapting the network from its original image recognition task to a broader classification capability.
+
+## Dataset
+The adapted ResNet model is trained and validated using the [RSNA 2024 Lumbar Spine Degenerative Classification Challenge dataset](https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification) available on Kaggle. This dataset provides an excellent opportunity to apply deep learning for medical imaging classification.
+
+### Dataset Details
+- **Images**: MRI scans of the lumbar spine.
+- **Labels**: Various degenerative conditions of the spine.
+- **Objective**: Accurately classify each scan into predefined categories based on the degenerative state.
