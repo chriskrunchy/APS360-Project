@@ -49,10 +49,11 @@ def load_data(data_dir, class_names, transform, batch_size=32, val_split=0.2):
 
     return train_loader, val_loader
 
-def train_model(model, criterion, optimizer, dataloaders, device, num_epochs):
+def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience=5):
     model.to(device)
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
+    epochs_no_improve = 0
 
     for epoch in range(num_epochs):
         print(f'Epoch {epoch}/{num_epochs - 1}')
@@ -88,14 +89,22 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs):
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
             epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
 
-            print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+            print(f'{phase} Loss: {epoch_loss:.4f} Acc: {100 * epoch_acc:.4f}%')
 
-            if phase == 'val' and epoch_acc > best_acc:
-                best_acc = epoch_acc
-                best_model_wts = copy.deepcopy(model.state_dict())
+            if phase == 'val':
+                if epoch_acc > best_acc:
+                    best_acc = epoch_acc
+                    best_model_wts = copy.deepcopy(model.state_dict())
+                    epochs_no_improve = 0
+                else:
+                    epochs_no_improve += 1
+
+        if epochs_no_improve >= patience:
+            print('Early stopping due to no improvement in validation accuracy')
+            break
 
     print('Training complete')
-    print(f'Best val Acc: {best_acc:4f}')
+    print(f'Best val Acc: {100 * best_acc:4f}%')
     model.load_state_dict(best_model_wts)
     return model
 
@@ -118,6 +127,7 @@ def evaluate_model(model, dataloader, device):
     print(f'Accuracy: {accuracy:.4f}, F1 Score: {f1:.4f}')
 
 def main(args):
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
     data_dir = args.data_dir
     class_names = [
         "Atelectasis",
@@ -173,10 +183,12 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train MultiConv Transformer Model')
-    parser.add_argument('--data_dir', type=str, required=True, help='Path to the dataset directory')
-    parser.add_argument('--batch_size', type=int, default=256, help='Batch size for training and validation')
-    parser.add_argument('--epochs', type=int, default=100, help='Number of epochs to train')
+    parser.add_argument('--data_dir', type=str, default="/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/images", help='Path to the dataset directory')
+    parser.add_argument('--batch_size', type=int, default=256, help='Batch size for training and testing')
+    parser.add_argument('--epochs', type=int, default=100, help='Number of epochs for training')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate for training')
-    
+    parser.add_argument('--gpus', type=str, default="0,1", help='Comma-separated list of GPU IDs to use')
+    parser.add_argument('--patience', type=int, default=5, help='Early stopping patience')
+
     args = parser.parse_args()
     main(args)

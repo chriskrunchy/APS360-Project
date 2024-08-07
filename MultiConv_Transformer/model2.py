@@ -55,8 +55,8 @@ class Block(nn.Module):
         return x 
 
 class MultiConv_Transformer(nn.Module):
-    def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=20, embed_dim=384, depth=12,
-                 num_heads=6, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
+    def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=19, embed_dim=192, depth=8,
+                 num_heads=3, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
                  drop_path_rate=0., norm_layer=nn.LayerNorm, global_pool=None,
                  block_layers=Block,
                  Patch_layer=PatchEmbed, act_layer=nn.GELU,

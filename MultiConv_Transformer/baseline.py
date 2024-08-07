@@ -12,6 +12,41 @@ from sklearn.metrics import accuracy_score, f1_score
 from PIL import Image
 from tqdm import tqdm
 
+class EarlyStopping:
+    def __init__(self, patience=5, verbose=False, delta=0):
+        self.patience = patience
+        self.verbose = verbose
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.val_loss_min = float('inf')
+        self.delta = delta
+
+    def __call__(self, val_loss, model):
+
+        score = -val_loss
+
+        if self.best_score is None:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+        elif score < self.best_score + self.delta:
+            self.counter += 1
+            if self.verbose:
+                print(f'EarlyStopping counter: {self.counter} out of {self.patience}')
+            if self.counter >= self.patience:
+                self.early_stop = True
+        else:
+            self.best_score = score
+            self.save_checkpoint(val_loss, model)
+            self.counter = 0
+
+    def save_checkpoint(self, val_loss, model):
+        '''Saves model when validation loss decrease.'''
+        if self.verbose:
+            print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ...')
+        torch.save(model.state_dict(), 'baseline_checkpoint.pth')
+        self.val_loss_min = val_loss
+
 class CustomDataset(Dataset):
     def __init__(self, image_paths, labels, transform=None):
         self.image_paths = image_paths
@@ -48,7 +83,7 @@ class SimpleCNN(nn.Module):
         x = self.fc2(x)
         return x
 
-def load_data(data_dir, class_names, transform, batch_size=32, val_split=0.2):
+def load_data(data_dir, class_names, transform, batch_size=32, val_split=0.2, num_workers=4):
     image_paths = []
     labels = []
     for label, class_name in enumerate(class_names):
@@ -62,15 +97,17 @@ def load_data(data_dir, class_names, transform, batch_size=32, val_split=0.2):
     train_dataset = CustomDataset(train_paths, train_labels, transform)
     val_dataset = CustomDataset(val_paths, val_labels, transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
     return train_loader, val_loader
 
-def train_model(model, criterion, optimizer, dataloaders, device, num_epochs=25):
+def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience):
     model.to(device)
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
+
+    early_stopping = EarlyStopping(patience=patience, verbose=True)
 
     for epoch in range(num_epochs):
         print(f'Epoch {epoch}/{num_epochs - 1}')
@@ -106,7 +143,14 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs=25)
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
             epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
 
-            print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+            print(f'{phase} Loss: {epoch_loss:.4f} Acc: {100 * epoch_acc:.4f}%')
+
+            if phase == 'val':
+                early_stopping(epoch_loss, model)
+                if early_stopping.early_stop:
+                    print("Early stopping")
+                    model.load_state_dict(torch.load('baseline_checkpoint.pth'))
+                    return model
 
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
@@ -172,7 +216,7 @@ def main(args):
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ])
 
-    train_loader, val_loader = load_data(data_dir, class_names, data_transforms, batch_size)
+    train_loader, val_loader = load_data(data_dir, class_names, data_transforms, batch_size, num_workers=4)
     dataloaders = {'train': train_loader, 'val': val_loader}
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -185,16 +229,16 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    model = train_model(model, criterion, optimizer, dataloaders, device, num_epochs)
+    model = train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience=5)
     evaluate_model(model, dataloaders['val'], device)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and Test Simple CNN Model')
     parser.add_argument('--data_dir', type=str, default="/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/images", help='Path to the dataset directory')
-    parser.add_argument('--batch_size', type=int, default=256, help='Batch size for training and testing')
+    parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training and testing')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs for training')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate for training')
-    parser.add_argument('--gpus', type=str, default="0,1", help='Comma-separated list of GPU IDs to use')
+    parser.add_argument('--gpus', type=str, default="0", help='Comma-separated list of GPU IDs to use')
     
     args = parser.parse_args()
     main(args)
