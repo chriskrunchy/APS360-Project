@@ -1,0 +1,15 @@
+Nodule: 6331
+Pneumothorax: 5302
+Mass: 5782
+Infiltration: 19894
+Atelectasis: 11559
+Effusion: 13317
+Consolidation: 4667
+Edema: 2303
+Emphysema: 2516
+Pneumonia: 1431
+No Finding: 60361
+Fibrosis: 1686
+Cardiomegaly: 2776
+Hernia: 227
+Pleural_Thickening: 3385
