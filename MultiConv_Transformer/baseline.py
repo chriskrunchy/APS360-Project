@@ -8,7 +8,10 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
@@ -83,7 +86,7 @@ class SimpleCNN(nn.Module):
         x = self.fc2(x)
         return x
 
-def load_data(data_dir, class_names, transform, batch_size=32, val_split=0.2, num_workers=4):
+def load_data(data_dir, class_names, transforms, batch_size=32, val_split=0.2, num_workers=4):
     image_paths = []
     labels = []
     for label, class_name in enumerate(class_names):
@@ -94,13 +97,14 @@ def load_data(data_dir, class_names, transform, batch_size=32, val_split=0.2, nu
 
     train_paths, val_paths, train_labels, val_labels = train_test_split(image_paths, labels, test_size=val_split, stratify=labels)
 
-    train_dataset = CustomDataset(train_paths, train_labels, transform)
-    val_dataset = CustomDataset(val_paths, val_labels, transform)
+    train_dataset = CustomDataset(train_paths, train_labels, transforms['train'])
+    val_dataset = CustomDataset(val_paths, val_labels, transforms['val'])
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
     return train_loader, val_loader
+
 
 def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience):
     model.to(device)
@@ -179,6 +183,55 @@ def evaluate_model(model, dataloader, device):
     f1 = f1_score(all_labels, all_preds, average='weighted')
     print(f'Accuracy: {accuracy:.4f}, F1 Score: {f1:.4f}')
 
+def plot_training_curve(train_loss, val_loss, train_acc, val_acc):
+    epochs = range(1, len(train_loss) + 1)
+
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, train_loss, 'b', label='Training loss')
+    plt.plot(epochs, val_loss, 'r', label='Validation loss')
+    plt.title('Training and validation loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, train_acc, 'b', label='Training accuracy')
+    plt.plot(epochs, val_acc, 'r', label='Validation accuracy')
+    plt.title('Training and validation accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.savefig('training_curve.pdf')
+    plt.close()
+
+def plot_confusion_matrix(model, dataloader, class_names, device):
+    model.eval()
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for inputs, labels in tqdm(dataloader, desc="Confusion Matrix", leave=False):
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            outputs = model(inputs)
+            _, preds = torch.max(outputs, 1)
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    cm = confusion_matrix(all_labels, all_preds)
+    cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt=".2f", cmap="Blues", xticklabels=class_names, yticklabels=class_names)
+    plt.xlabel('Predicted Label')
+    plt.ylabel('True Label')
+    plt.title('Normalized Confusion Matrix')
+    plt.savefig('confusion_matrix.pdf')
+    plt.close()
+
 def main(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
     data_dir = args.data_dir
@@ -209,12 +262,20 @@ def main(args):
     num_epochs = args.epochs
     learning_rate = args.lr
 
-    data_transforms = transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-    ])
+    data_transforms = {
+        'train': transforms.Compose([
+            transforms.RandomResizedCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ]),
+        'val': transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ]),
+    }
 
     train_loader, val_loader = load_data(data_dir, class_names, data_transforms, batch_size, num_workers=4)
     dataloaders = {'train': train_loader, 'val': val_loader}
@@ -229,8 +290,12 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    model = train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience=5)
+    model, train_loss, val_loss, train_acc, val_acc = train_model(
+        model, criterion, optimizer, dataloaders, device, num_epochs, patience=5)
+    
     evaluate_model(model, dataloaders['val'], device)
+    plot_training_curve(train_loss, val_loss, train_acc, val_acc)
+    plot_confusion_matrix(model, dataloaders['val'], class_names, device)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and Test Simple CNN Model')

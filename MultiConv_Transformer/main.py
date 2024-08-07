@@ -49,7 +49,7 @@ def load_data(data_dir, class_names, transform, batch_size=32, val_split=0.2):
 
     return train_loader, val_loader
 
-def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience=5):
+def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience=5, checkpoint_path='checkpoint.pth'):
     model.to(device)
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -96,6 +96,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, pa
                     best_acc = epoch_acc
                     best_model_wts = copy.deepcopy(model.state_dict())
                     epochs_no_improve = 0
+                    torch.save(model.state_dict(), checkpoint_path)
                 else:
                     epochs_no_improve += 1
 
@@ -178,7 +179,7 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-    model = train_model(model, criterion, optimizer, dataloaders, device, num_epochs)
+    model = train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience=args.patience, checkpoint_path=args.checkpoint_path)
     evaluate_model(model, dataloaders['val'], device)
 
 if __name__ == '__main__':
@@ -189,6 +190,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate for training')
     parser.add_argument('--gpus', type=str, default="0,1", help='Comma-separated list of GPU IDs to use')
     parser.add_argument('--patience', type=int, default=5, help='Early stopping patience')
+    parser.add_argument('--checkpoint_path', type=str, default='checkpoint.pth', help='Path to save the model checkpoint')
 
     args = parser.parse_args()
     main(args)
