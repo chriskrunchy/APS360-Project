@@ -1,15 +1,20 @@
 Nodule: 6331
-Pneumothorax: 5302
+Enlarged Cardiomediastinum: 13282
+Pneumothorax: 14168
 Mass: 5782
+Lung Opacity: 39299
 Infiltration: 19894
-Atelectasis: 11559
+Atelectasis: 42520
 Effusion: 13317
-Consolidation: 4667
-Edema: 2303
+Consolidation: 25733
+Edema: 27380
 Emphysema: 2516
-Pneumonia: 1431
-No Finding: 60361
+Pneumonia: 15693
+No Finding: 74734
+Pleural Other: 3443
 Fibrosis: 1686
-Cardiomegaly: 2776
-Hernia: 227
+Lung Lesion: 5933
+Cardiomegaly: 18113
 Pleural_Thickening: 3385
+Fracture: 5365
+Total: 338574
