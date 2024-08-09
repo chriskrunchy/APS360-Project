@@ -284,7 +284,7 @@ def load_data(data_dir, class_names, transforms, batch_size=32, val_split=0.2, n
     return train_loader, val_loader
 
 
-def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience):
+def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience, scheduler):
     model.to(device)
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -332,6 +332,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, pa
             if phase == 'train':
                 train_loss_history.append(epoch_loss)
                 train_acc_history.append(epoch_acc.item())
+                scheduler.step()
             else:
                 val_loss_history.append(epoch_loss)
                 val_acc_history.append(epoch_acc.item())
@@ -342,7 +343,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, pa
                 early_stopping(epoch_loss, model)
                 if early_stopping.early_stop:
                     print("Early stopping")
-                    model.load_state_dict(torch.load('baseline_checkpoint.pth'))
+                    model.load_state_dict(torch.load('resnet_checkpoint.pth'))
                     return model, train_loss_history, val_loss_history, train_acc_history, val_acc_history
 
             if phase == 'val' and epoch_acc > best_acc:
@@ -420,7 +421,6 @@ def plot_confusion_matrix(model, dataloader, class_names, device):
     plt.title('Normalized Confusion Matrix')
     plt.savefig('confusion_matrix.pdf')
     plt.close()
-
 def main(args):
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
     data_dir = args.data_dir

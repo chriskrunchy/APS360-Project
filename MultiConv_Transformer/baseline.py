@@ -106,7 +106,7 @@ def load_data(data_dir, class_names, transforms, batch_size=32, val_split=0.2, n
     return train_loader, val_loader
 
 
-def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience):
+def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, patience, scheduler):
     model.to(device)
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -154,6 +154,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, pa
             if phase == 'train':
                 train_loss_history.append(epoch_loss)
                 train_acc_history.append(epoch_acc.item())
+                scheduler.step()
             else:
                 val_loss_history.append(epoch_loss)
                 val_acc_history.append(epoch_acc.item())
@@ -164,7 +165,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, pa
                 early_stopping(epoch_loss, model)
                 if early_stopping.early_stop:
                     print("Early stopping")
-                    model.load_state_dict(torch.load('baseline_checkpoint.pth'))
+                    model.load_state_dict(torch.load('resnet_checkpoint.pth'))
                     return model, train_loss_history, val_loss_history, train_acc_history, val_acc_history
 
             if phase == 'val' and epoch_acc > best_acc:
@@ -297,8 +298,8 @@ def main(args):
         'No Finding',
         'Cardiomegaly',
     ]# 13282each -> Total = 146102
-    
-    num_classes = len(class_names_X)
+
+    num_classes = len(cleaned_images)
     batch_size = args.batch_size
     num_epochs = args.epochs
     learning_rate = args.lr
@@ -319,7 +320,7 @@ def main(args):
         ]),
     }
 
-    train_loader, val_loader = load_data(data_dir, class_names_X, data_transforms, batch_size, num_workers=4)
+    train_loader, val_loader = load_data(data_dir, cleaned_images, data_transforms, batch_size, num_workers=4)
     dataloaders = {'train': train_loader, 'val': val_loader}
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -341,11 +342,11 @@ def main(args):
     
     evaluate_model(model, dataloaders['val'], device)
     plot_training_curve(train_loss, val_loss, train_acc, val_acc)
-    plot_confusion_matrix(model, dataloaders['val'], class_names_X, device)
+    plot_confusion_matrix(model, dataloaders['val'], cleaned_images, device)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and Test Baseline Model')
-    parser.add_argument('--data_dir', type=str, default="/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/chestX-ray", help='Path to the dataset directory')
+    parser.add_argument('--data_dir', type=str, default="/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/cleaned_images", help='Path to the dataset directory')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training and testing')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs for training')
     parser.add_argument('--num_classes', type=int, default=14, help='Number of classes for training')
