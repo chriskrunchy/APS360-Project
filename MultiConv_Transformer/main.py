@@ -509,7 +509,7 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
-        # Learning rate scheduler
+    # Learning rate scheduler
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[25, 50, 75], gamma=0.1)
 
     model, train_loss, val_loss, train_acc, val_acc = train_model(
