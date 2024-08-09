@@ -266,8 +266,7 @@ def main(args):
         "Pleural_Thickening",
         "Pneumonia",
         "Pneumothorax"
-    ] # 19
-
+    ]
     class_names_X = [
         "Atelectasis",
         "Cardiomegaly",
@@ -286,6 +285,19 @@ def main(args):
         "Pneumothorax"
     ] # 14 + No Finding
 
+    cleaned_images = [
+        'Pneumothorax',
+        'Lung Opacity',
+        'Infiltration',
+        'Atelectasis',
+        'Effusion',
+        'Consolidation',
+        'Edema',
+        'Pneumonia',
+        'No Finding',
+        'Cardiomegaly',
+    ]# 13282each -> Total = 146102
+    
     num_classes = len(class_names_X)
     batch_size = args.batch_size
     num_epochs = args.epochs

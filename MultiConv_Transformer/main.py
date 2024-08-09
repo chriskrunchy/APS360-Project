@@ -445,8 +445,38 @@ def main(args):
         "Pneumonia",
         "Pneumothorax"
     ]
+    class_names_X = [
+        "Atelectasis",
+        "Cardiomegaly",
+        "Consolidation",
+        "Edema",
+        "Effusion",
+        "Emphysema",
+        "Fibrosis",
+        "Hernia",
+        "Infiltration",
+        "Mass",
+        "No Finding",
+        "Nodule",
+        "Pleural_Thickening",
+        "Pneumonia",
+        "Pneumothorax"
+    ] # 14 + No Finding
 
-    num_classes = len(class_names)
+    cleaned_images = [
+        'Pneumothorax',
+        'Lung Opacity',
+        'Infiltration',
+        'Atelectasis',
+        'Effusion',
+        'Consolidation',
+        'Edema',
+        'Pneumonia',
+        'No Finding',
+        'Cardiomegaly',
+    ]# 13282each -> Total = 146102
+
+    num_classes = len(cleaned_images)
     batch_size = args.batch_size
     num_epochs = args.epochs
     learning_rate = args.lr
@@ -466,7 +496,7 @@ def main(args):
         ]),
     }
 
-    train_loader, val_loader = load_data(data_dir, class_names, data_transforms, batch_size, num_workers=4)
+    train_loader, val_loader = load_data(data_dir, cleaned_images, data_transforms, batch_size, num_workers=4)
     dataloaders = {'train': train_loader, 'val': val_loader}
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -479,16 +509,19 @@ def main(args):
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
+        # Learning rate scheduler
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[25, 50, 75], gamma=0.1)
+
     model, train_loss, val_loss, train_acc, val_acc = train_model(
-        model, criterion, optimizer, dataloaders, device, num_epochs, patience=5)
+        model, criterion, optimizer, dataloaders, device, num_epochs, patience=5, scheduler=scheduler)
     
     evaluate_model(model, dataloaders['val'], device)
     plot_training_curve(train_loss, val_loss, train_acc, val_acc)
-    plot_confusion_matrix(model, dataloaders['val'], class_names, device)
+    plot_confusion_matrix(model, dataloaders['val'], cleaned_images, device)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and Test Simple CNN Model')
-    parser.add_argument('--data_dir', type=str, default="/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/images", help='Path to the dataset directory')
+    parser.add_argument('--data_dir', type=str, default="/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/cleaned_images", help='Path to the dataset directory')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training and testing')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs for training')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate for training')

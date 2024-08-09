@@ -323,8 +323,8 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and Test ResNet Model')
-    parser.add_argument('--data_dir', type=str, default="/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/chestX-ray", help='Path to the dataset directory')
-    parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training and testing')
+    parser.add_argument('--data_dir', type=str, default="/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/cleaned_images", help='Path to the dataset directory')
+    parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training and testing')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs for training')
     parser.add_argument('--lr', type=float, default=0.1, help='Initial learning rate for training')
     parser.add_argument('--weight_decay', type=float, default=1e-4, help='Weight decay for optimizer')
