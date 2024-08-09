@@ -68,7 +68,7 @@ class CustomDataset(Dataset):
         return image, label
 
 class SimpleCNN(nn.Module):
-    def __init__(self, num_classes=19):
+    def __init__(self, num_classes):
         super(SimpleCNN, self).__init__()
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
@@ -110,8 +110,12 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, pa
     model.to(device)
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
-
     early_stopping = EarlyStopping(patience=patience, verbose=True)
+    
+    train_loss_history = []
+    val_loss_history = []
+    train_acc_history = []
+    val_acc_history = []
 
     for epoch in range(num_epochs):
         print(f'Epoch {epoch}/{num_epochs - 1}')
@@ -147,6 +151,13 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, pa
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
             epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
 
+            if phase == 'train':
+                train_loss_history.append(epoch_loss)
+                train_acc_history.append(epoch_acc.item())
+            else:
+                val_loss_history.append(epoch_loss)
+                val_acc_history.append(epoch_acc.item())
+
             print(f'{phase} Loss: {epoch_loss:.4f} Acc: {100 * epoch_acc:.4f}%')
 
             if phase == 'val':
@@ -154,7 +165,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, pa
                 if early_stopping.early_stop:
                     print("Early stopping")
                     model.load_state_dict(torch.load('baseline_checkpoint.pth'))
-                    return model
+                    return model, train_loss_history, val_loss_history, train_acc_history, val_acc_history
 
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
@@ -163,7 +174,7 @@ def train_model(model, criterion, optimizer, dataloaders, device, num_epochs, pa
     print('Training complete')
     print(f'Best val Acc: {best_acc:4f}')
     model.load_state_dict(best_model_wts)
-    return model
+    return model, train_loss_history, val_loss_history, train_acc_history, val_acc_history
 
 def evaluate_model(model, dataloader, device):
     model.eval()
@@ -255,12 +266,31 @@ def main(args):
         "Pleural_Thickening",
         "Pneumonia",
         "Pneumothorax"
-    ]
+    ] # 19
 
-    num_classes = len(class_names)
+    class_names_X = [
+        "Atelectasis",
+        "Cardiomegaly",
+        "Consolidation",
+        "Edema",
+        "Effusion",
+        "Emphysema",
+        "Fibrosis",
+        "Hernia",
+        "Infiltration",
+        "Mass",
+        "No Finding",
+        "Nodule",
+        "Pleural_Thickening",
+        "Pneumonia",
+        "Pneumothorax"
+    ] # 14 + No Finding
+
+    num_classes = len(class_names_X)
     batch_size = args.batch_size
     num_epochs = args.epochs
     learning_rate = args.lr
+    weight_decay = args.weight_decay
 
     data_transforms = {
         'train': transforms.Compose([
@@ -277,10 +307,11 @@ def main(args):
         ]),
     }
 
-    train_loader, val_loader = load_data(data_dir, class_names, data_transforms, batch_size, num_workers=4)
+    train_loader, val_loader = load_data(data_dir, class_names_X, data_transforms, batch_size, num_workers=4)
     dataloaders = {'train': train_loader, 'val': val_loader}
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    
     model = SimpleCNN(num_classes=num_classes)
 
     if torch.cuda.device_count() > 1:
@@ -288,22 +319,27 @@ def main(args):
         
     model.to(device)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=weight_decay)
+
+    # Use a learning rate scheduler
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[25, 50, 75], gamma=0.1)
 
     model, train_loss, val_loss, train_acc, val_acc = train_model(
-        model, criterion, optimizer, dataloaders, device, num_epochs, patience=5)
+        model, criterion, optimizer, dataloaders, device, num_epochs, patience=5, scheduler=scheduler)
     
     evaluate_model(model, dataloaders['val'], device)
     plot_training_curve(train_loss, val_loss, train_acc, val_acc)
-    plot_confusion_matrix(model, dataloaders['val'], class_names, device)
+    plot_confusion_matrix(model, dataloaders['val'], class_names_X, device)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Train and Test Simple CNN Model')
-    parser.add_argument('--data_dir', type=str, default="/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/images", help='Path to the dataset directory')
+    parser = argparse.ArgumentParser(description='Train and Test Baseline Model')
+    parser.add_argument('--data_dir', type=str, default="/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/chestX-ray", help='Path to the dataset directory')
     parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training and testing')
     parser.add_argument('--epochs', type=int, default=100, help='Number of epochs for training')
-    parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate for training')
-    parser.add_argument('--gpus', type=str, default="0", help='Comma-separated list of GPU IDs to use')
+    parser.add_argument('--num_classes', type=int, default=14, help='Number of classes for training')
+    parser.add_argument('--lr', type=float, default=0.1, help='Initial learning rate for training')
+    parser.add_argument('--weight_decay', type=float, default=1e-4, help='Weight decay for optimizer')
+    parser.add_argument('--gpus', type=str, default="0,1", help='Comma-separated list of GPU IDs to use')
     
     args = parser.parse_args()
     main(args)

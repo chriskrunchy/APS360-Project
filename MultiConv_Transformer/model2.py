@@ -57,43 +57,35 @@ class Block(nn.Module):
 class MultiConv_Transformer(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=19, embed_dim=192, depth=8,
                  num_heads=3, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
-                 drop_path_rate=0., norm_layer=nn.LayerNorm, global_pool=None,
-                 block_layers=Block,
-                 Patch_layer=PatchEmbed, act_layer=nn.GELU,
-                 Attention_block=Attention, Mlp_block=Mlp,
-                 dpr_constant=True, init_scale=1e-4,
-                 mlp_ratio_clstk=4.0, **kwargs):
+                 drop_path_rate=0., norm_layer=nn.LayerNorm, 
+                 block_layers=Block, Patch_layer=PatchEmbed, act_layer=nn.GELU,
+                 Attention_block=Attention, Mlp_block=Mlp, init_scale=1e-4):
         super().__init__()
 
-        self.dropout_rate = drop_rate
-
         self.num_classes = num_classes
-        self.num_features = self.embed_dim = embed_dim
+        self.embed_dim = embed_dim
 
-        self.conv1 = nn.Conv2d(in_chans, embed_dim, kernel_size=3, stride=2, padding=1, bias=False)
-        self.conv2 = nn.Conv2d(embed_dim, embed_dim, kernel_size=3, stride=2, padding=1, bias=False)
-        self.conv3 = nn.Conv2d(embed_dim, embed_dim, kernel_size=3, stride=2, padding=1, bias=False)
+        # Define the initial convolutional layers
+        self.conv1 = nn.Conv2d(in_chans, embed_dim // 4, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv2 = nn.Conv2d(embed_dim // 4, embed_dim // 2, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv3 = nn.Conv2d(embed_dim // 2, embed_dim, kernel_size=3, stride=2, padding=1, bias=False)
 
-        self.patch_embed = Patch_layer(
-            img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
+        self.patch_embed = Patch_layer(img_size=img_size // 8, patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim)
         num_patches = self.patch_embed.num_patches
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
 
         dpr = [drop_path_rate for i in range(depth)]
         self.blocks = nn.ModuleList([
-            block_layers(
-                dim=embed_dim, num_heads=num_heads, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias, qk_scale=qk_scale,
-                drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[i], norm_layer=norm_layer,
-                act_layer=act_layer, Attention_block=Attention_block, Mlp_block=Mlp_block, init_values=init_scale)
+            block_layers(dim=embed_dim, num_heads=num_heads, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias, qk_scale=qk_scale,
+                         drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[i], norm_layer=norm_layer,
+                         act_layer=act_layer, Attention_block=Attention_block, Mlp_block=Mlp_block, init_values=init_scale)
             for i in range(depth)])
 
         self.norm = norm_layer(embed_dim)
-
-        self.feature_info = [dict(num_chs=embed_dim, reduction=0, module='head')]
         self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        self.drop_rate = drop_rate
 
         trunc_normal_(self.pos_embed, std=.02)
         trunc_normal_(self.cls_token, std=.02)
@@ -108,84 +100,32 @@ class MultiConv_Transformer(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        return {'pos_embed', 'cls_token'}
-
-    def get_classifier(self):
-        return self.head
-    
-    def get_num_layers(self):
-        return len(self.blocks)
-    
-    def reset_classifier(self, num_classes, global_pool=''):
-        self.num_classes = num_classes
-        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
-
     def forward_features(self, x):
         B = x.shape[0]
-        
-        # Pass through convolutional layers
-        x1 = self.conv1(x)
-        x2 = self.conv2(x1)
-        x3 = self.conv3(x2)
-        
-        # Patch embedding for the original input
-        x_original = self.patch_embed(x)
 
-        # Padding the conv results to match the size of original patches
-        pad_size = x_original.shape[-2:]
-        x1 = F.pad(x1, (0, pad_size[1] - x1.shape[-1], 0, pad_size[0] - x1.shape[-2]))
-        x2 = F.pad(x2, (0, pad_size[1] - x2.shape[-1], 0, pad_size[0] - x2.shape[-2]))
-        x3 = F.pad(x3, (0, pad_size[1] - x3.shape[-1], 0, pad_size[0] - x3.shape[-2]))
-        
-        # Patch embedding for each stage
-        x1 = self.patch_embed(x1)
-        x2 = self.patch_embed(x2)
-        x3 = self.patch_embed(x3)
+        x = self.conv1(x)  # Output: [B, embed_dim // 4, H/2, W/2]
+        x = self.conv2(x)  # Output: [B, embed_dim // 2, H/4, W/4]
+        x = self.conv3(x)  # Output: [B, embed_dim, H/8, W/8]
 
-        # Add class tokens and position embeddings
-        cls_tokens = self.cls_token.expand(B, -1, -1)
-        x_original = torch.cat((cls_tokens, x_original), dim=1)
-        x1 = torch.cat((cls_tokens, x1), dim=1)
-        x2 = torch.cat((cls_tokens, x2), dim=1)
-        x3 = torch.cat((cls_tokens, x3), dim=1)
-        x_original = x_original + self.pos_embed[:, :x_original.size(1), :]
-        x1 = x1 + self.pos_embed[:, :x1.size(1), :]
-        x2 = x2 + self.pos_embed[:, :x2.size(1), :]
-        x3 = x3 + self.pos_embed[:, :x3.size(1), :]
+        x = self.patch_embed(x)  # Output: [B, num_patches, embed_dim]
 
-        # Pass through attention blocks
+        cls_tokens = self.cls_token.expand(B, -1, -1)  # (B, 1, embed_dim)
+        x = torch.cat((cls_tokens, x), dim=1)  # (B, num_patches + 1, embed_dim)
+        x = x + self.pos_embed  # (B, num_patches + 1, embed_dim)
+
         for blk in self.blocks:
-            x_original = blk(x_original)
-            x1 = blk(x1)
-            x2 = blk(x2)
-            x3 = blk(x3)
+            x = blk(x)
 
-        # Norm layers
-        x_original = self.norm(x_original)
-        x1 = self.norm(x1)
-        x2 = self.norm(x2)
-        x3 = self.norm(x3)
+        x = self.norm(x)
+        return x[:, 0]  # Return the class token
 
-        # Extract class token from each stage
-        x_original = x_original[:, 0]
-        x1 = x1[:, 0]
-        x2 = x2[:, 0]
-        x3 = x3[:, 0]
-
-        # Average pooling of the class tokens from each stage
-        x = (x_original + x1 + x2 + x3) / 4
-        return x
-        
     def forward(self, x):
         x = self.forward_features(x)
-        
-        if self.dropout_rate:
-            x = F.dropout(x, p=float(self.dropout_rate), training=self.training)
+        if self.drop_rate:
+            x = F.dropout(x, p=float(self.drop_rate), training=self.training)
         x = self.head(x)
-        
         return x
+
 
 
 # No Padding
