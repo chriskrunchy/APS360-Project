@@ -11,6 +11,6 @@ def count_images_in_folders(root_dir):
             print(f"{folder_name}: {image_count}")
 
 # Provide the path to the directory containing the classified images
-root_directory = '/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/images'
+root_directory = '/home/adam/final_project/APS360-Project/MultiConv_Transformer/data/cleaned_images'
 count_images_in_folders(root_directory)
 print(f"Total: {sum(total)}")

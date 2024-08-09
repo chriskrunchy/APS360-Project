@@ -261,8 +261,21 @@ def main(args):
         "Pneumonia",
         "Pneumothorax"
     ] # 14 + No Finding
+
+    cleaned_images = [
+        'Pneumothorax',
+        'Lung Opacity',
+        'Infiltration',
+        'Atelectasis',
+        'Effusion',
+        'Consolidation',
+        'Edema',
+        'Pneumonia',
+        'No Finding',
+        'Cardiomegaly',
+    ]# 13282each -> Total = 146102
     
-    num_classes = len(class_names_X)
+    num_classes = len(cleaned_images)
     batch_size = args.batch_size
     num_epochs = args.epochs
     learning_rate = args.lr
@@ -283,7 +296,7 @@ def main(args):
         ]),
     }
 
-    train_loader, val_loader = load_data(data_dir, class_names_X, data_transforms, batch_size, num_workers=4)
+    train_loader, val_loader = load_data(data_dir, cleaned_images, data_transforms, batch_size, num_workers=4)
     dataloaders = {'train': train_loader, 'val': val_loader}
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -306,7 +319,7 @@ def main(args):
     
     evaluate_model(model, dataloaders['val'], device)
     plot_training_curve(train_loss, val_loss, train_acc, val_acc)
-    plot_confusion_matrix(model, dataloaders['val'], class_names_X, device)
+    plot_confusion_matrix(model, dataloaders['val'], cleaned_images, device)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train and Test ResNet Model')
