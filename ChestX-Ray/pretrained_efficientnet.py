@@ -14,7 +14,7 @@ from PIL import Image
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, roc_curve, auc
 from tqdm import tqdm
-from transformers import ViTForImageClassification
+from efficientnet_pytorch import EfficientNet
 import warnings
 
 warnings.filterwarnings("ignore", message="The default value of the antialias parameter of all the resizing transforms")
@@ -110,9 +110,8 @@ test_dataset = ChestXrayDataset(csv_file='vit_test_data.csv', image_folder=image
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-# Load pre-trained ViT-Base model
-# model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224-in21k', num_labels=num_classes)
-model = ViTForImageClassification.from_config(ViTForImageClassification.config_class(num_labels=num_classes))
+# Load pre-trained EfficientNet model
+model = EfficientNet.from_pretrained('efficientnet-b0')
 
 # Enable multi-GPU if available and specified
 if len(gpu_ids) > 1 and torch.cuda.device_count() > 1:
