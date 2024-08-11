@@ -1,9 +1,11 @@
-# Baseline
-torchrun --nnodes=1 --nproc_per_node=2 baseline.py 
-python baseline.py --gpus 2,3
+# pretrained-resnet
+python pretrained_resnet.py --batch_size 32 --num_workers 4 --gpus "0,1" --num_epochs 20
 
-# MultiConv_Transformer
-python train.py --gpus 0,1,2,3
+# pretrained-vgg
+python pretrained_vgg.py --batch_size 32 --num_workers 4 --gpus "0,1" --num_epochs 20
 
-# resnet
-python resnet.py --gpus 0,1,2,3
+# pretrained-cheXNet
+python pretrained_chexnet.py --batch_size 32 --num_workers 4 --gpus "2,3" --num_epochs 20
+
+# pretrained-vit-tiny
+python pretrained_vit_tiny.py --batch_size 32 --num_workers 4 --gpus "2,3" --num_epochs 20
