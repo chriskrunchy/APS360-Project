@@ -124,7 +124,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 # Early stopping parameters
-patience = 3  # Number of epochs to wait after last improvement
+patience = 5  # Number of epochs to wait after last improvement
 min_delta = 0.001  # Minimum change in the monitored quantity to qualify as an improvement
 best_val_loss = float('inf')
 patience_counter = 0
