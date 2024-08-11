@@ -99,12 +99,12 @@ data = pd.read_csv(csv_file)
 train_data, test_data = train_test_split(data, test_size=0.2, stratify=data['Class Name'], random_state=42)
 
 # Save the train and test splits
-train_data.to_csv('vit_train_data.csv', index=False)
-test_data.to_csv('vit_test_data.csv', index=False)
+train_data.to_csv('eff_train_data.csv', index=False)
+test_data.to_csv('eff_test_data.csv', index=False)
 
 # Create dataset objects
-train_dataset = ChestXrayDataset(csv_file='vit_train_data.csv', image_folder=image_folder, transform=train_transform)
-test_dataset = ChestXrayDataset(csv_file='vit_test_data.csv', image_folder=image_folder, transform=test_transform)
+train_dataset = ChestXrayDataset(csv_file='eff_train_data.csv', image_folder=image_folder, transform=train_transform)
+test_dataset = ChestXrayDataset(csv_file='eff_test_data.csv', image_folder=image_folder, transform=test_transform)
 
 # Create data loaders with num_workers
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -148,7 +148,7 @@ for epoch in range(num_epochs):
         labels = labels.to(device)
         
         optimizer.zero_grad()
-        outputs = model(images).logits
+        outputs = model(images)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
@@ -175,7 +175,7 @@ for epoch in range(num_epochs):
         for images, labels in test_loader:
             images = images.to(device)
             labels = labels.to(device)
-            outputs = model(images).logits
+            outputs = model(images)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
             
@@ -208,8 +208,8 @@ plt.plot(range(1, num_epochs + 1), test_losses, label='Validation Loss')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
-plt.title('VIT-T Training and Validation Loss')
-plt.savefig('vit_tiny_loss_curve.pdf')
+plt.title('EfficientNet Training and Validation Loss')
+plt.savefig('efficient_net_loss_curve.pdf')
 
 plt.figure()
 plt.plot(range(1, num_epochs + 1), train_accuracies, label='Training Accuracy')
@@ -217,8 +217,8 @@ plt.plot(range(1, num_epochs + 1), test_accuracies, label='Validation Accuracy')
 plt.xlabel('Epoch')
 plt.ylabel('Accuracy (%)')
 plt.legend()
-plt.title('ViT-T Training and Validation Accuracy')
-plt.savefig('vit_tiny_accuracy_curve.pdf')
+plt.title('Efficient Net Training and Validation Accuracy')
+plt.savefig('efficient_net_accuracy_curve.pdf')
 
 # Confusion matrix and ROC curve
 model.eval()
@@ -228,7 +228,7 @@ with torch.no_grad():
     for images, labels in test_loader:
         images = images.to(device)
         labels = labels.to(device)
-        outputs = model(images).logits
+        outputs = model(images)
         _, predicted = torch.max(outputs.data, 1)
         all_labels.extend(labels.cpu().numpy())
         all_preds.extend(predicted.cpu().numpy())
@@ -237,14 +237,14 @@ with torch.no_grad():
 cm = confusion_matrix(all_labels, all_preds)
 plt.figure(figsize=(10, 7))
 plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-plt.title('ViT-T Confusion Matrix')
+plt.title('Efficient Net Confusion Matrix')
 plt.colorbar()
 tick_marks = np.arange(num_classes)
 plt.xticks(tick_marks, class_names, rotation=45)
 plt.yticks(tick_marks, class_names)
 plt.ylabel('True Label')
 plt.xlabel('Predicted Label')
-plt.savefig('vit_tiny_confusion_matrix.pdf')
+plt.savefig('efficient_net_confusion_matrix.pdf')
 
 # Compute ROC curve and AUC for each class
 fpr = {}
@@ -262,8 +262,8 @@ plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
-plt.title('ViT-T Receiver Operating Characteristic')
+plt.title('Efficient Net Receiver Operating Characteristic')
 plt.legend(loc='lower right')
-plt.savefig('vit_tiny_roc_curve.pdf')
+plt.savefig('efficient_net_roc_curve.pdf')
 
 print('Training and evaluation complete. Curves and matrices saved as PDF.')
