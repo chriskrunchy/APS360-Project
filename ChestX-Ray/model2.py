@@ -1,158 +1,240 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from functools import partial
+import torch.optim as optim
+from torchvision import transforms, datasets
+from torch.utils.data import DataLoader, Dataset
+from torchvision import models
+import pandas as pd
+from PIL import Image
+import os
+import timm
+from torchsummary import summary
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix, roc_curve, auc
+from sklearn.preprocessing import label_binarize
+import numpy as np
 
-from timm.models.vision_transformer import Mlp, PatchEmbed, _cfg
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from timm.models.registry import register_model
 
-class Attention(nn.Module):
-    # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
-    def __init__(self, dim, num_heads=8, qkv_bias=False, qk_scale=None, attn_drop=0., proj_drop=0.):
-        super().__init__()
-        self.num_heads = num_heads
-        head_dim = dim // num_heads
-        self.scale = qk_scale or head_dim ** -0.5
+# Define a custom dataset class
+class CustomImageDataset(Dataset):
+    def __init__(self, annotations_file, img_dir, transform=None):
+        self.img_labels = pd.read_csv(annotations_file)
+        self.img_dir = img_dir
+        self.transform = transform
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
-        self.attn_drop = nn.Dropout(attn_drop)
-        self.proj = nn.Linear(dim, dim)
-        self.proj_drop = nn.Dropout(proj_drop)
+    def __len__(self):
+        return len(self.img_labels)
 
-    def forward(self, x):
-        B, N, C = x.shape
-        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]
+    def __getitem__(self, idx):
+        img_path = os.path.join(self.img_dir, self.img_labels.iloc[idx, 0])
+        image = Image.open(img_path).convert("RGB")
+        label = int(self.img_labels.iloc[idx, 1])
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
+
+# Image transformations
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+# Load dataset
+dataset = CustomImageDataset(
+    annotations_file='/home/adam/final_project/APS360-Project/ChestX-Ray/data/balanced_images.csv', 
+    img_dir='/home/adam/final_project/APS360-Project/ChestX-Ray/data/nih-chest-xray-dataset/balanced', 
+    transform=transform
+)
+
+# Split dataset into training and validation sets
+train_size = int(0.8 * len(dataset))
+val_size = len(dataset) - train_size
+train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
+
+# Data loaders
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4)
+
+# Define the CNN + ViT model
+class CNN_ViT(nn.Module):
+    def __init__(self, num_classes=10):
+        super(CNN_ViT, self).__init__()
+        # Pretrained CNN (ResNet50)
+        self.cnn = timm.create_model('resnet50', pretrained=True, num_classes=0)
         
-        q = q * self.scale
+        # Vision Transformer (DeiT Small)
+        self.vit = timm.create_model('deit_small_patch16_224', pretrained=True, num_classes=0)
+        
+        # Final Classification Head
+        self.fc = nn.Linear(768 + 2048, num_classes)
 
-        attn = (q @ k.transpose(-2, -1))
-        attn = attn.softmax(dim=-1)
-        attn = self.attn_drop(attn)
+    def forward(self, x):
+        # Pass through CNN
+        cnn_features = self.cnn(x)
+        
+        # Pass through ViT
+        vit_features = self.vit(x)
+        
+        # Concatenate features
+        combined_features = torch.cat((cnn_features, vit_features), dim=1)
+        
+        # Final Classification
+        output = self.fc(combined_features)
+        return output
 
-        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
-        x = self.proj(x)
-        x = self.proj_drop(x)
-        return x
+# Initialize the model, optimizer, and loss function
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = CNN_ViT(num_classes=10).to(device)
+# summary(model, (3, 224, 224))
+
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+criterion = nn.CrossEntropyLoss()
+
+# Training loop
+epochs = 20
+best_val_loss = float('inf')
+
+# Initialize lists to store the training and validation metrics
+train_losses = []
+train_accuracies = []
+val_losses = []
+val_accuracies = []
+
+# Training loop
+for epoch in range(epochs):
+    print(f"Epoch {epoch + 1}/{epochs}")
     
-class Block(nn.Module):
-    # taken from https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
-    def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop=0., attn_drop=0.,
-                 drop_path=0., act_layer=nn.GELU, norm_layer=nn.LayerNorm, Attention_block=Attention, Mlp_block=Mlp, init_values=1e-4):
-        super().__init__()
-        self.norm1 = norm_layer(dim)
-        self.attn = Attention_block(
-            dim, num_heads=num_heads, qkv_bias=qkv_bias, qk_scale=qk_scale, attn_drop=attn_drop, proj_drop=drop)
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-        self.norm2 = norm_layer(dim)
-        mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = Mlp_block(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
+    # Training phase
+    model.train()
+    running_loss = 0.0
+    correct_predictions = 0
+    
+    for inputs, labels in train_loader:
+        inputs, labels = inputs.to(device), labels.to(device)
+        
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        
+        running_loss += loss.item() * inputs.size(0)
+        _, preds = torch.max(outputs, 1)
+        correct_predictions += torch.sum(preds == labels.data)
+    
+    train_loss = running_loss / len(train_loader.dataset)
+    train_acc = correct_predictions.double() / len(train_loader.dataset)
+    train_losses.append(train_loss)
+    train_accuracies.append(train_acc.item())
+    
+    # Validation phase
+    model.eval()
+    val_loss = 0.0
+    val_correct_predictions = 0
+    
+    with torch.no_grad():
+        for inputs, labels in val_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            
+            val_loss += loss.item() * inputs.size(0)
+            _, preds = torch.max(outputs, 1)
+            val_correct_predictions += torch.sum(preds == labels.data)
+    
+    val_loss = val_loss / len(val_loader.dataset)
+    val_acc = val_correct_predictions.double() / len(val_loader.dataset)
+    val_losses.append(val_loss)
+    val_accuracies.append(val_acc.item())
+    
+    print(f"Training Loss: {train_loss:.4f}, Accuracy: {train_acc:.4f}")
+    print(f"Validation Loss: {val_loss:.4f}, Accuracy: {val_acc:.4f}")
+    
+    # Early stopping and model saving
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        torch.save(model.state_dict(), 'best_model.pth')
+        print("Model saved.")
 
-    def forward(self, x):
-        x = x + self.drop_path(self.attn(self.norm1(x)))
-        x = x + self.drop_path(self.mlp(self.norm2(x)))
-        return x 
+# Load the best model for evaluation
+model.load_state_dict(torch.load('best_model.pth'))
+model.eval()
 
-class MultiConv_Transformer(nn.Module):
-    def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=4, embed_dim=192, depth=8,
-                 num_heads=3, mlp_ratio=4., qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0.,
-                 drop_path_rate=0., norm_layer=nn.LayerNorm, global_pool=None,
-                 block_layers=Block,
-                 Patch_layer=PatchEmbed, act_layer=nn.GELU,
-                 Attention_block=Attention, Mlp_block=Mlp,
-                 dpr_constant=True, init_scale=1e-4,
-                 mlp_ratio_clstk=4.0, **kwargs):
-        super().__init__()
+# Plot training and validation loss and accuracy
+epochs_range = range(1, epochs + 1)
+plt.figure(figsize=(12, 6))
 
-        self.dropout_rate = drop_rate
-        self.num_classes = num_classes
-        self.num_features = self.embed_dim = embed_dim
+# Loss plot
+plt.subplot(1, 2, 1)
+plt.plot(epochs_range, train_losses, label='Training Loss')
+plt.plot(epochs_range, val_losses, label='Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.title('Training and Validation Loss')
+plt.legend()
 
-        # Convolutional layers (like the encoder section of TransUNet)
-        self.conv1 = nn.Conv2d(in_chans, 64, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(128, embed_dim, kernel_size=3, stride=1, padding=1)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+# Accuracy plot
+plt.subplot(1, 2, 2)
+plt.plot(epochs_range, train_accuracies, label='Training Accuracy')
+plt.plot(epochs_range, val_accuracies, label='Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.title('Training and Validation Accuracy')
+plt.legend()
 
-        # Patch embedding after convolutional layers
-        self.patch_embed = Patch_layer(
-            img_size=img_size // 8, patch_size=patch_size, in_chans=embed_dim, embed_dim=embed_dim)
-        num_patches = self.patch_embed.num_patches
+plt.tight_layout()
+plt.savefig('training_validation_curves.pdf')
 
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
-        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
+# Confusion matrix
+all_preds = []
+all_labels = []
+with torch.no_grad():
+    for inputs, labels in val_loader:
+        inputs, labels = inputs.to(device), labels.to(device)
+        outputs = model(inputs)
+        _, preds = torch.max(outputs, 1)
+        all_preds.extend(preds.cpu().numpy())
+        all_labels.extend(labels.cpu().numpy())
 
-        dpr = [drop_path_rate for i in range(depth)]
-        self.blocks = nn.ModuleList([
-            block_layers(
-                dim=embed_dim, num_heads=num_heads, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias, qk_scale=qk_scale,
-                drop=0.0, attn_drop=attn_drop_rate, drop_path=dpr[i], norm_layer=norm_layer,
-                act_layer=act_layer, Attention_block=Attention_block, Mlp_block=Mlp_block, init_values=init_scale)
-            for i in range(depth)])
+cm = confusion_matrix(all_labels, all_preds)
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Predicted Label')
+plt.ylabel('True Label')
+plt.title('Confusion Matrix')
+plt.savefig('confusion_matrix.pdf')
 
-        self.norm = norm_layer(embed_dim)
-        self.head = nn.Linear(embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+# ROC curve and AUC
+all_labels = np.array(all_labels)
+all_preds = np.array(all_preds)
+n_classes = len(np.unique(all_labels))
+labels_binarized = label_binarize(all_labels, classes=[*range(n_classes)])
 
-        trunc_normal_(self.pos_embed, std=.02)
-        trunc_normal_(self.cls_token, std=.02)
-        self.apply(self._init_weights)
+fpr = dict()
+tpr = dict()
+roc_auc = dict()
 
-    def _init_weights(self, m):
-        if isinstance(m, nn.Linear):
-            trunc_normal_(m.weight, std=.02)
-            if isinstance(m, nn.Linear) and m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
+# Compute ROC curve and ROC area for each class
+for i in range(n_classes):
+    fpr[i], tpr[i], _ = roc_curve(labels_binarized[:, i], all_preds == i)
+    roc_auc[i] = auc(fpr[i], tpr[i])
 
-    @torch.jit.ignore
-    def no_weight_decay(self):
-        return {'pos_embed', 'cls_token'}
+# Plot ROC curves
+plt.figure(figsize=(8, 6))
+for i in range(n_classes):
+    plt.plot(fpr[i], tpr[i], label=f'Class {i} (AUC = {roc_auc[i]:.2f})')
 
-    def get_classifier(self):
-        return self.head
+plt.plot([0, 1], [0, 1], 'k--')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve')
+plt.legend(loc="lower right")
+plt.savefig('roc_curve.pdf')
 
-    def get_num_layers(self):
-        return len(self.blocks)
-
-    def reset_classifier(self, num_classes, global_pool=''):
-        self.num_classes = num_classes
-        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
-
-    def forward_features(self, x):
-        B = x.shape[0]
-
-        # Pass through convolutional layers
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.pool(x)
-
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = self.pool(x)
-
-        x = self.conv3(x)
-        x = F.relu(x)
-        x = self.pool(x)
-
-        # Pass through patch embedding
-        x = self.patch_embed(x)  # Output: [B, num_patches, embed_dim]
-
-        cls_tokens = self.cls_token.expand(B, -1, -1)
-        x = torch.cat((cls_tokens, x), dim=1)
-        x = x + self.pos_embed
-
-        for blk in self.blocks:
-            x = blk(x)
-
-        x = self.norm(x)
-        return x[:, 0]
-
-    def forward(self, x):
-        x = self.forward_features(x)
-        if self.dropout_rate:
-            x = F.dropout(x, p=float(self.dropout_rate), training=self.training)
-        x = self.head(x)
-        return x
+print("Training curves, confusion matrix, and ROC curve saved as PDFs.")
