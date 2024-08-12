@@ -16,6 +16,7 @@ from sklearn.metrics import confusion_matrix, roc_curve, auc
 from tqdm import tqdm
 from efficientnet_pytorch import EfficientNet
 import warnings
+import seaborn as sns
 
 warnings.filterwarnings("ignore", message="The default value of the antialias parameter of all the resizing transforms")
 
@@ -25,8 +26,8 @@ parser = argparse.ArgumentParser(description="Train a ViT-Base model on chest X-
 parser.add_argument('--csv_file', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data/image_labels.csv', help='Path to the CSV file containing image paths and labels')
 parser.add_argument('--image_folder', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data/nih-chest-xray-dataset/balanced', help='Path to the folder containing images')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training and validation')
-parser.add_argument('--learning_rate', type=float, default=1e-5, help='Learning rate for the optimizer')
-parser.add_argument('--num_epochs', type=int, default=10, help='Number of epochs to train the model')
+parser.add_argument('--learning_rate', type=float, default=1e-4, help='Learning rate for the optimizer')
+parser.add_argument('--num_epochs', type=int, default=100, help='Number of epochs to train the model')
 parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for the DataLoader')
 parser.add_argument('--gpus', type=str, default='0', help='Comma-separated list of GPU IDs to use for training, e.g., "0,1,2"')
 
@@ -121,7 +122,7 @@ model = model.to(device)
 
 # Define loss function and optimizer
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=0.01)
 
 # Early stopping parameters
 patience = 5  # Number of epochs to wait after last improvement
@@ -201,24 +202,37 @@ for epoch in range(num_epochs):
         print(f'Early stopping triggered after epoch {epoch + 1}')
         break
 
-# Save training and validation curves as PDF
+# Plot training and validation loss
 plt.figure()
-plt.plot(range(1, num_epochs + 1), train_losses, label='Training Loss')
-plt.plot(range(1, num_epochs + 1), test_losses, label='Validation Loss')
+plt.plot(range(1, len(train_losses) + 1), train_losses, label='Training Loss')
+plt.plot(range(1, len(test_losses) + 1), test_losses, label='Validation Loss')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
-plt.title('EfficientNet Training and Validation Loss')
-plt.savefig('efficient_net_loss_curve.pdf')
+plt.title('Efficient Net Training and Validation Loss')
 
+# Annotate every 5th epoch
+for i in range(4, len(train_losses), 5):
+    plt.text(i + 1, train_losses[i], f'{train_losses[i]:.2f}', ha='center', va='bottom')
+    plt.text(i + 1, test_losses[i], f'{test_losses[i]:.2f}', ha='center', va='bottom')
+
+plt.savefig('efficientnet_loss_curve.pdf')
+
+# Plot training and validation accuracy
 plt.figure()
-plt.plot(range(1, num_epochs + 1), train_accuracies, label='Training Accuracy')
-plt.plot(range(1, num_epochs + 1), test_accuracies, label='Validation Accuracy')
+plt.plot(range(1, len(train_accuracies) + 1), train_accuracies, label='Training Accuracy')
+plt.plot(range(1, len(test_accuracies) + 1), test_accuracies, label='Validation Accuracy')
 plt.xlabel('Epoch')
 plt.ylabel('Accuracy (%)')
 plt.legend()
 plt.title('Efficient Net Training and Validation Accuracy')
-plt.savefig('efficient_net_accuracy_curve.pdf')
+
+# Annotate every 5th epoch
+for i in range(4, len(train_accuracies), 5):
+    plt.text(i + 1, train_accuracies[i], f'{train_accuracies[i]:.2f}%', ha='center', va='bottom')
+    plt.text(i + 1, test_accuracies[i], f'{test_accuracies[i]:.2f}%', ha='center', va='bottom')
+
+plt.savefig('efficientnet_accuracy_curve.pdf')
 
 # Confusion matrix and ROC curve
 model.eval()
@@ -235,16 +249,18 @@ with torch.no_grad():
 
 # Compute confusion matrix
 cm = confusion_matrix(all_labels, all_preds)
+# Normalize the confusion matrix (optional)
+cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+# Plot confusion matrix with larger font size for annotations
 plt.figure(figsize=(10, 7))
-plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-plt.title('Efficient Net Confusion Matrix')
-plt.colorbar()
-tick_marks = np.arange(num_classes)
-plt.xticks(tick_marks, class_names, rotation=45)
-plt.yticks(tick_marks, class_names)
-plt.ylabel('True Label')
-plt.xlabel('Predicted Label')
-plt.savefig('efficient_net_confusion_matrix.pdf')
+sns.heatmap(cm_normalized, annot=True, fmt=".2f", cmap='Blues', xticklabels=class_names, yticklabels=class_names, annot_kws={"size": 14})
+plt.title('EfficienetNet Confusion Matrix', fontsize=16)
+plt.xlabel('Predicted Label', fontsize=14)
+plt.ylabel('True Label', fontsize=14)
+plt.xticks(rotation=45, fontsize=12)
+plt.yticks(rotation=0, fontsize=12)
+plt.savefig('efficientnet_confusion_matrix.pdf')
+
 
 # Compute ROC curve and AUC for each class
 fpr = {}
@@ -264,6 +280,6 @@ plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
 plt.title('Efficient Net Receiver Operating Characteristic')
 plt.legend(loc='lower right')
-plt.savefig('efficient_net_roc_curve.pdf')
+plt.savefig('efficientnet_roc_curve.pdf')
 
 print('Training and evaluation complete. Curves and matrices saved as PDF.')

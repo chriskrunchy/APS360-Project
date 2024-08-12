@@ -14,6 +14,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, roc_curve, auc
 from tqdm import tqdm
 import numpy as np
+import seaborn as sns
 import warnings
 
 warnings.filterwarnings("ignore", message="The default value of the antialias parameter of all the resizing transforms")
@@ -137,7 +138,7 @@ model = model.to(device)
 
 # Define loss function and optimizer
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=0.01)
 
 # Lists to store training and validation loss and accuracy
 train_losses = []
@@ -219,8 +220,8 @@ for epoch in range(num_epochs):
 
 # Save training and validation curves as PDF
 plt.figure()
-plt.plot(range(1, num_epochs + 1), train_losses, label='Training Loss')
-plt.plot(range(1, num_epochs + 1), test_losses, label='Validation Loss')
+plt.plot(range(1, len(train_losses) + 1), train_losses, label='Training Loss')
+plt.plot(range(1, len(test_losses) + 1), test_losses, label='Validation Loss')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
@@ -228,12 +229,12 @@ plt.title('CheXNet Training and Validation Loss')
 plt.savefig('chexnet_loss_curve.pdf')
 
 plt.figure()
-plt.plot(range(1, num_epochs + 1), train_accuracies, label='Training Accuracy')
-plt.plot(range(1, num_epochs + 1), test_accuracies, label='Validation Accuracy')
+plt.plot(range(1, len(train_accuracies) + 1), train_accuracies, label='Training Accuracy')
+plt.plot(range(1, len(test_accuracies) + 1), test_accuracies, label='Validation Accuracy')
 plt.xlabel('Epoch')
 plt.ylabel('Accuracy (%)')
 plt.legend()
-plt.title('CheXNetTraining and Validation Accuracy')
+plt.title('CheXNet Training and Validation Accuracy')
 plt.savefig('chexnet_accuracy_curve.pdf')
 
 # Confusion matrix and ROC curve
@@ -251,15 +252,16 @@ with torch.no_grad():
 
 # Compute confusion matrix
 cm = confusion_matrix(all_labels, all_preds)
+# Normalize the confusion matrix (optional)
+cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+# Plot confusion matrix with larger font size for annotations
 plt.figure(figsize=(10, 7))
-plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-plt.title('CheXNet Confusion Matrix')
-plt.colorbar()
-tick_marks = np.arange(num_classes)
-plt.xticks(tick_marks, class_names, rotation=45)
-plt.yticks(tick_marks, class_names)
-plt.ylabel('True Label')
-plt.xlabel('Predicted Label')
+sns.heatmap(cm_normalized, annot=True, fmt=".2f", cmap='Blues', xticklabels=class_names, yticklabels=class_names, annot_kws={"size": 14})
+plt.title('CheXNet Confusion Matrix', fontsize=16)
+plt.xlabel('Predicted Label', fontsize=14)
+plt.ylabel('True Label', fontsize=14)
+plt.xticks(rotation=45, fontsize=12)
+plt.yticks(rotation=0, fontsize=12)
 plt.savefig('chexnet_confusion_matrix.pdf')
 
 # Compute ROC curve and AUC for each class

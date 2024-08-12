@@ -15,6 +15,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, roc_curve, auc
 from tqdm import tqdm
 from transformers import ViTForImageClassification, ViTConfig
+import seaborn as sns
 import warnings
 
 warnings.filterwarnings("ignore", message="The default value of the antialias parameter of all the resizing transforms")
@@ -25,7 +26,7 @@ parser = argparse.ArgumentParser(description="Train a ViT-Base model on chest X-
 parser.add_argument('--csv_file', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data/image_labels.csv', help='Path to the CSV file containing image paths and labels')
 parser.add_argument('--image_folder', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data/nih-chest-xray-dataset/balanced', help='Path to the folder containing images')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training and validation')
-parser.add_argument('--learning_rate', type=float, default=1e-5, help='Learning rate for the optimizer')
+parser.add_argument('--learning_rate', type=float, default=5e-4, help='Learning rate for the optimizer')
 parser.add_argument('--num_epochs', type=int, default=10, help='Number of epochs to train the model')
 parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for the DataLoader')
 parser.add_argument('--gpus', type=str, default='0', help='Comma-separated list of GPU IDs to use for training, e.g., "0,1,2"')
@@ -124,7 +125,9 @@ model = model.to(device)
 
 # Define loss function and optimizer
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+# optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), weight_decay=0.01)
+
 
 # Early stopping parameters
 patience = 5  # Number of epochs to wait after last improvement
@@ -151,14 +154,14 @@ for epoch in range(num_epochs):
         labels = labels.to(device)
         
         optimizer.zero_grad()
-        outputs = model(images).logits
-        loss = criterion(outputs, labels)
+        outputs = model(images)
+        loss = criterion(outputs.logits, labels)  
         loss.backward()
         optimizer.step()
         
         running_loss += loss.item()
         
-        _, predicted = torch.max(outputs.data, 1)
+        _, predicted = torch.max(outputs.logits, 1)
         total += labels.size(0)
         correct += (predicted == labels).sum().item()
     
@@ -178,11 +181,11 @@ for epoch in range(num_epochs):
         for images, labels in test_loader:
             images = images.to(device)
             labels = labels.to(device)
-            outputs = model(images).logits
-            loss = criterion(outputs, labels)
+            outputs = model(images)  # Get the output
+            loss = criterion(outputs.logits, labels)  # Use logits for loss calculation
             running_loss += loss.item()
             
-            _, predicted = torch.max(outputs.data, 1)
+            _, predicted = torch.max(outputs.logits, 1)  # Use logits for prediction
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     
@@ -206,22 +209,22 @@ for epoch in range(num_epochs):
 
 # Save training and validation curves as PDF
 plt.figure()
-plt.plot(range(1, num_epochs + 1), train_losses, label='Training Loss')
-plt.plot(range(1, num_epochs + 1), test_losses, label='Validation Loss')
+plt.plot(range(1, len(train_losses) + 1), train_losses, label='Training Loss')
+plt.plot(range(1, len(test_losses) + 1), test_losses, label='Validation Loss')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
-plt.title('VIT-T Training and Validation Loss')
-plt.savefig('vit_tiny_loss_curve.pdf')
+plt.title('ViT Training and Validation Loss')
+plt.savefig('vit_loss_curve.pdf')
 
 plt.figure()
-plt.plot(range(1, num_epochs + 1), train_accuracies, label='Training Accuracy')
-plt.plot(range(1, num_epochs + 1), test_accuracies, label='Validation Accuracy')
+plt.plot(range(1, len(train_accuracies) + 1), train_accuracies, label='Training Accuracy')
+plt.plot(range(1, len(test_accuracies) + 1), test_accuracies, label='Validation Accuracy')
 plt.xlabel('Epoch')
 plt.ylabel('Accuracy (%)')
 plt.legend()
-plt.title('ViT-T Training and Validation Accuracy')
-plt.savefig('vit_tiny_accuracy_curve.pdf')
+plt.title('ViT Training and Validation Accuracy')
+plt.savefig('vit_accuracy_curve.pdf')
 
 # Confusion matrix and ROC curve
 model.eval()
@@ -231,23 +234,24 @@ with torch.no_grad():
     for images, labels in test_loader:
         images = images.to(device)
         labels = labels.to(device)
-        outputs = model(images).logits
+        outputs = model(images)
         _, predicted = torch.max(outputs.data, 1)
         all_labels.extend(labels.cpu().numpy())
         all_preds.extend(predicted.cpu().numpy())
 
 # Compute confusion matrix
 cm = confusion_matrix(all_labels, all_preds)
+# Normalize the confusion matrix (optional)
+cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+# Plot confusion matrix with larger font size for annotations
 plt.figure(figsize=(10, 7))
-plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-plt.title('ViT-T Confusion Matrix')
-plt.colorbar()
-tick_marks = np.arange(num_classes)
-plt.xticks(tick_marks, class_names, rotation=45)
-plt.yticks(tick_marks, class_names)
-plt.ylabel('True Label')
-plt.xlabel('Predicted Label')
-plt.savefig('vit_tiny_confusion_matrix.pdf')
+sns.heatmap(cm_normalized, annot=True, fmt=".2f", cmap='Blues', xticklabels=class_names, yticklabels=class_names, annot_kws={"size": 14})
+plt.title('ViT Confusion Matrix', fontsize=16)
+plt.xlabel('Predicted Label', fontsize=14)
+plt.ylabel('True Label', fontsize=14)
+plt.xticks(rotation=45, fontsize=12)
+plt.yticks(rotation=0, fontsize=12)
+plt.savefig('vit_confusion_matrix.pdf')
 
 # Compute ROC curve and AUC for each class
 fpr = {}
@@ -265,8 +269,8 @@ plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
-plt.title('ViT-T Receiver Operating Characteristic')
+plt.title('ViT Receiver Operating Characteristic')
 plt.legend(loc='lower right')
-plt.savefig('vit_tiny_roc_curve.pdf')
+plt.savefig('vit_roc_curve.pdf')
 
 print('Training and evaluation complete. Curves and matrices saved as PDF.')
