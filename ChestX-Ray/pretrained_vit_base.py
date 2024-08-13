@@ -95,21 +95,26 @@ test_transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-# Load CSV and create train-test split
+# Load CSV and create train-validation-test split
 data = pd.read_csv(csv_file)
-train_data, test_data = train_test_split(data, test_size=0.2, stratify=data['Class Name'], random_state=42)
+train_data, temp_data = train_test_split(data, test_size=0.3, stratify=data['Class Name'], random_state=42)  # 70% train, 30% temp
+val_data, test_data = train_test_split(temp_data, test_size=0.5, stratify=temp_data['Class Name'], random_state=42)  # 15% val, 15% test
 
-# Save the train and test splits
+# Save the train, validation, and test splits
 train_data.to_csv('vit_train_data.csv', index=False)
+val_data.to_csv('vit_val_data.csv', index=False)
 test_data.to_csv('vit_test_data.csv', index=False)
 
 # Create dataset objects
 train_dataset = ChestXrayDataset(csv_file='vit_train_data.csv', image_folder=image_folder, transform=train_transform)
+val_dataset = ChestXrayDataset(csv_file='vit_val_data.csv', image_folder=image_folder, transform=test_transform)
 test_dataset = ChestXrayDataset(csv_file='vit_test_data.csv', image_folder=image_folder, transform=test_transform)
 
 # Create data loaders with num_workers
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+
 
 # Load pre-trained ViT-Base model
 # model = ViTForImageClassification.from_pretrained('google/vit-base-patch16-224-in21k', num_labels=num_classes)
@@ -140,6 +145,7 @@ train_losses = []
 test_losses = []
 train_accuracies = []
 test_accuracies = []
+
 
 # Training the model with tqdm progress bar and early stopping
 for epoch in range(num_epochs):
@@ -172,13 +178,13 @@ for epoch in range(num_epochs):
     
     print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.2f}%')
     
-    # Evaluate on the test set
+    # Evaluate on the validation set
     model.eval()
     running_loss = 0.0
     correct = 0
     total = 0
     with torch.no_grad():
-        for images, labels in test_loader:
+        for images, labels in val_loader:
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images)  # Get the output
@@ -189,7 +195,7 @@ for epoch in range(num_epochs):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     
-    epoch_loss = running_loss / len(test_loader)
+    epoch_loss = running_loss / len(val_loader)
     epoch_acc = 100 * correct / total
     test_losses.append(epoch_loss)
     test_accuracies.append(epoch_acc)
@@ -206,6 +212,11 @@ for epoch in range(num_epochs):
     if patience_counter >= patience:
         print(f'Early stopping triggered after epoch {epoch + 1}')
         break
+
+
+model_save_path = 'vit_model.pth'
+torch.save(model.state_dict(), model_save_path)
+print(f'Model parameters saved to {model_save_path}')
 
 # Save training and validation curves as PDF
 plt.figure()
@@ -226,7 +237,7 @@ plt.legend()
 plt.title('ViT Training and Validation Accuracy')
 plt.savefig('vit_accuracy_curve.pdf')
 
-# Confusion matrix and ROC curve
+# Evaluate on the test set at the end
 model.eval()
 all_labels = []
 all_preds = []
@@ -235,7 +246,7 @@ with torch.no_grad():
         images = images.to(device)
         labels = labels.to(device)
         outputs = model(images)
-        _, predicted = torch.max(outputs.data, 1)
+        _, predicted = torch.max(outputs.logits, 1)
         all_labels.extend(labels.cpu().numpy())
         all_preds.extend(predicted.cpu().numpy())
 

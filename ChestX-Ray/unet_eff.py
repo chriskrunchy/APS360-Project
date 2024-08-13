@@ -18,9 +18,18 @@ class DoubleConv(nn.Module):
     def forward(self, x):
         return self.conv(x)
 
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(ResidualBlock, self).__init__()
+        self.conv = DoubleConv(in_channels, out_channels)
+        self.skip = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1)
+
+    def forward(self, x):
+        return self.conv(x) + self.skip(x)
+
 class MultiLevelUnet(nn.Module):
     def __init__(self, in_channels=3, num_classes=4, features=[64, 128, 256, 512],
-                 width_coefficient=1.0, depth_coefficient=1.0, resolution_coefficient=1.0, dropout_rate=0.5):
+                 width_coefficient=1.2, depth_coefficient=2.0, resolution_coefficient=1.0, dropout_rate=0.5):
         super(MultiLevelUnet, self).__init__()
         
         # Apply width scaling
@@ -34,12 +43,12 @@ class MultiLevelUnet(nn.Module):
         for i, feature in enumerate(features):
             num_repeats = math.ceil((i + 1) * depth_coefficient)
             for _ in range(num_repeats):
-                self.downs.append(DoubleConv(in_channels, feature))
+                self.downs.append(ResidualBlock(in_channels, feature))
                 in_channels = feature
 
         # Bottleneck
         bottleneck_features = math.ceil(features[-1] * 2 * width_coefficient)
-        self.bottleneck = DoubleConv(features[-1], bottleneck_features)
+        self.bottleneck = ResidualBlock(features[-1], bottleneck_features)
 
         # Classifier for multi-level features
         # Including bottleneck features
@@ -80,5 +89,5 @@ class MultiLevelUnet(nn.Module):
 
         return x
 
-# Example of initializing with scaling factors
-model = MultiLevelUnet(width_coefficient=1.2, depth_coefficient=1.2, resolution_coefficient=1.1, dropout_rate=0.3)
+# Example of initializing the model to achieve similar depth to EfficientNet-B7
+model = MultiLevelUnet(width_coefficient=1.2, depth_coefficient=2.0, resolution_coefficient=1.1, dropout_rate=0.3)

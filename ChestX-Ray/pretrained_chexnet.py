@@ -94,20 +94,25 @@ test_transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-# Load CSV and create train-test split
-data = pd.read_csv(csv_file)
-train_data, test_data = train_test_split(data, test_size=0.2, stratify=data['Class Name'], random_state=42)
 
-# Save the train and test splits
+# Load CSV and create train-validation-test split
+data = pd.read_csv(csv_file)
+train_data, temp_data = train_test_split(data, test_size=0.3, stratify=data['Class Name'], random_state=42)  # 70% train, 30% temp
+val_data, test_data = train_test_split(temp_data, test_size=0.5, stratify=temp_data['Class Name'], random_state=42)  # 15% val, 15% test
+
+# Save the train, validation, and test splits
 train_data.to_csv('chexnet_train_data.csv', index=False)
+val_data.to_csv('chexnet_val_data.csv', index=False)
 test_data.to_csv('chexnet_test_data.csv', index=False)
 
 # Create dataset objects
 train_dataset = ChestXrayDataset(csv_file='chexnet_train_data.csv', image_folder=image_folder, transform=train_transform)
+val_dataset = ChestXrayDataset(csv_file='chexnet_val_data.csv', image_folder=image_folder, transform=test_transform)
 test_dataset = ChestXrayDataset(csv_file='chexnet_test_data.csv', image_folder=image_folder, transform=test_transform)
 
 # Create data loaders with num_workers
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
 # Load pre-trained DenseNet-121 model
@@ -152,7 +157,7 @@ min_delta = 0.0005  # Minimum change in the monitored quantity to qualify as an 
 best_val_loss = float('inf')
 patience_counter = 0
 
-# Training the model with tqdm progress bar
+# Training the model with tqdm progress bar and early stopping
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
@@ -183,13 +188,13 @@ for epoch in range(num_epochs):
     
     print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.2f}%')
     
-    # Evaluate on the test set
+    # Evaluate on the validation set
     model.eval()
     running_loss = 0.0
     correct = 0
     total = 0
     with torch.no_grad():
-        for images, labels in test_loader:
+        for images, labels in val_loader:
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images)
@@ -200,14 +205,14 @@ for epoch in range(num_epochs):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     
-    epoch_loss = running_loss / len(test_loader)
+    epoch_loss = running_loss / len(val_loader)
     epoch_acc = 100 * correct / total
     test_losses.append(epoch_loss)
     test_accuracies.append(epoch_acc)
     
     print(f'Validation Loss: {epoch_loss:.4f}, Validation Accuracy: {epoch_acc:.2f}%')
     
-	# Early stopping check
+    # Early stopping check
     if epoch_loss < best_val_loss - min_delta:
         best_val_loss = epoch_loss
         patience_counter = 0  # Reset patience counter if validation loss improves
@@ -218,7 +223,11 @@ for epoch in range(num_epochs):
         print(f'Early stopping triggered after epoch {epoch + 1}')
         break
 
-# Save training and validation curves as PDF
+model_save_path = 'chexnet_model.pth'
+torch.save(model.state_dict(), model_save_path)
+print(f'Model parameters saved to {model_save_path}')
+
+# Plot training and validation loss
 plt.figure()
 plt.plot(range(1, len(train_losses) + 1), train_losses, label='Training Loss')
 plt.plot(range(1, len(test_losses) + 1), test_losses, label='Validation Loss')
@@ -226,8 +235,15 @@ plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
 plt.title('CheXNet Training and Validation Loss')
+
+# Annotate every 5th epoch
+for i in range(4, len(train_losses), 5):
+    plt.text(i + 1, train_losses[i], f'{train_losses[i]:.2f}', ha='center', va='bottom')
+    plt.text(i + 1, test_losses[i], f'{test_losses[i]:.2f}', ha='center', va='bottom')
+
 plt.savefig('chexnet_loss_curve.pdf')
 
+# Plot training and validation accuracy
 plt.figure()
 plt.plot(range(1, len(train_accuracies) + 1), train_accuracies, label='Training Accuracy')
 plt.plot(range(1, len(test_accuracies) + 1), test_accuracies, label='Validation Accuracy')
@@ -235,9 +251,16 @@ plt.xlabel('Epoch')
 plt.ylabel('Accuracy (%)')
 plt.legend()
 plt.title('CheXNet Training and Validation Accuracy')
+
+# Annotate every 5th epoch
+for i in range(4, len(train_accuracies), 5):
+    plt.text(i + 1, train_accuracies[i], f'{train_accuracies[i]:.2f}%', ha='center', va='bottom')
+    plt.text(i + 1, test_accuracies[i], f'{test_accuracies[i]:.2f}%', ha='center', va='bottom')
+
 plt.savefig('chexnet_accuracy_curve.pdf')
 
-# Confusion matrix and ROC curve
+
+# Evaluate on the test set at the end
 model.eval()
 all_labels = []
 all_preds = []
@@ -257,7 +280,7 @@ cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 # Plot confusion matrix with larger font size for annotations
 plt.figure(figsize=(10, 7))
 sns.heatmap(cm_normalized, annot=True, fmt=".2f", cmap='Blues', xticklabels=class_names, yticklabels=class_names, annot_kws={"size": 14})
-plt.title('CheXNet Confusion Matrix', fontsize=16)
+plt.title('ChexNet Confusion Matrix', fontsize=16)
 plt.xlabel('Predicted Label', fontsize=14)
 plt.ylabel('True Label', fontsize=14)
 plt.xticks(rotation=45, fontsize=12)
