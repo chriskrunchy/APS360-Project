@@ -210,7 +210,7 @@ import seaborn as sns
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
-from model2 import MultiConv_Transformer
+from unet_att import MultiConv_Transformer
 
 class EarlyStopping:
     def __init__(self, patience=5, verbose=False, delta=0):
