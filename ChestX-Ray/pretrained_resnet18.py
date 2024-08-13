@@ -25,7 +25,7 @@ parser = argparse.ArgumentParser(description="Train a ResNet model on chest X-ra
 parser.add_argument('--csv_file', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data/image_labels.csv', help='Path to the CSV file containing image paths and labels')
 parser.add_argument('--image_folder', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data/nih-chest-xray-dataset/balanced', help='Path to the folder containing images')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training and validation')
-parser.add_argument('--learning_rate', type=float, default=0.003, help='Learning rate for the optimizer')
+parser.add_argument('--learning_rate', type=float, default=1e-5, help='Learning rate for the optimizer')
 parser.add_argument('--num_epochs', type=int, default=100, help='Number of epochs to train the model')
 parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for the DataLoader')
 parser.add_argument('--gpus', type=str, default='0,1', help='Comma-separated list of GPU IDs to use for training, e.g., "0,1,2"')
@@ -101,14 +101,14 @@ train_data, temp_data = train_test_split(data, test_size=0.3, stratify=data['Cla
 val_data, test_data = train_test_split(temp_data, test_size=0.5, stratify=temp_data['Class Name'], random_state=42)  # 15% val, 15% test
 
 # Save the train, validation, and test splits
-train_data.to_csv('resnet_train_data.csv', index=False)
-val_data.to_csv('resnet_val_data.csv', index=False)
-test_data.to_csv('resnet_test_data.csv', index=False)
+train_data.to_csv('resnet18_train_data.csv', index=False)
+val_data.to_csv('resnet18_val_data.csv', index=False)
+test_data.to_csv('resnet18_test_data.csv', index=False)
 
 # Create dataset objects
-train_dataset = ChestXrayDataset(csv_file='resnet_train_data.csv', image_folder=image_folder, transform=train_transform)
-val_dataset = ChestXrayDataset(csv_file='resnet_val_data.csv', image_folder=image_folder, transform=test_transform)
-test_dataset = ChestXrayDataset(csv_file='resnet_test_data.csv', image_folder=image_folder, transform=test_transform)
+train_dataset = ChestXrayDataset(csv_file='resnet18_train_data.csv', image_folder=image_folder, transform=train_transform)
+val_dataset = ChestXrayDataset(csv_file='resnet18_val_data.csv', image_folder=image_folder, transform=test_transform)
+test_dataset = ChestXrayDataset(csv_file='resnet18_test_data.csv', image_folder=image_folder, transform=test_transform)
 
 # Create data loaders with num_workers
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -209,7 +209,7 @@ for epoch in range(num_epochs):
         print(f'Early stopping triggered after epoch {epoch + 1}')
         break
 
-model_save_path = 'resnet_model.pth'
+model_save_path = 'resnet18_model.pth'
 torch.save(model.state_dict(), model_save_path)
 print(f'Model parameters saved to {model_save_path}')
 
@@ -220,14 +220,14 @@ plt.plot(range(1, len(test_losses) + 1), test_losses, label='Validation Loss')
 plt.xlabel('Epoch')
 plt.ylabel('Loss')
 plt.legend()
-plt.title('ResNet Training and Validation Loss')
+plt.title('ResNet18 Training and Validation Loss')
 
 # Annotate every 5th epoch
 for i in range(4, len(train_losses), 5):
     plt.text(i + 1, train_losses[i], f'{train_losses[i]:.2f}', ha='center', va='bottom')
     plt.text(i + 1, test_losses[i], f'{test_losses[i]:.2f}', ha='center', va='bottom')
 
-plt.savefig('resnet_loss_curve.pdf')
+plt.savefig('resnet18_loss_curve.pdf')
 
 # Plot training and validation accuracy
 plt.figure()
@@ -236,14 +236,14 @@ plt.plot(range(1, len(test_accuracies) + 1), test_accuracies, label='Validation 
 plt.xlabel('Epoch')
 plt.ylabel('Accuracy (%)')
 plt.legend()
-plt.title('ResNet Training and Validation Accuracy')
+plt.title('ResNet18 Training and Validation Accuracy')
 
 # Annotate every 5th epoch
 for i in range(4, len(train_accuracies), 5):
     plt.text(i + 1, train_accuracies[i], f'{train_accuracies[i]:.2f}%', ha='center', va='bottom')
     plt.text(i + 1, test_accuracies[i], f'{test_accuracies[i]:.2f}%', ha='center', va='bottom')
 
-plt.savefig('resnet_accuracy_curve.pdf')
+plt.savefig('resnet18_accuracy_curve.pdf')
 
 
 # Evaluate on the test set at the end
@@ -266,12 +266,12 @@ cm_normalized = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
 # Plot confusion matrix with larger font size for annotations
 plt.figure(figsize=(10, 7))
 sns.heatmap(cm_normalized, annot=True, fmt=".2f", cmap='Blues', xticklabels=class_names, yticklabels=class_names, annot_kws={"size": 14})
-plt.title('ResNet Confusion Matrix', fontsize=16)
+plt.title('ResNet18 Confusion Matrix', fontsize=16)
 plt.xlabel('Predicted Label', fontsize=14)
 plt.ylabel('True Label', fontsize=14)
 plt.xticks(rotation=45, fontsize=12)
 plt.yticks(rotation=0, fontsize=12)
-plt.savefig('resnet_confusion_matrix.pdf')
+plt.savefig('resnet18_confusion_matrix.pdf')
 
 # Compute ROC curve and AUC for each class
 fpr = {}
@@ -289,8 +289,8 @@ plt.xlim([0.0, 1.0])
 plt.ylim([0.0, 1.05])
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
-plt.title('ResNet Receiver Operating Characteristic')
+plt.title('ResNet18 Receiver Operating Characteristic')
 plt.legend(loc='lower right')
-plt.savefig('resnet_roc_curve.pdf')
+plt.savefig('resnet18_roc_curve.pdf')
 
 print('Training and evaluation complete. Curves and matrices saved as PDF.')
