@@ -112,7 +112,7 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, nu
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
 # Load pre-trained EfficientNet model
-model = EfficientNet.from_pretrained('efficientnet-b0')
+model = EfficientNet.from_pretrained('efficientnet-b7')
 
 # Enable multi-GPU if available and specified
 if len(gpu_ids) > 1 and torch.cuda.device_count() > 1:
@@ -126,7 +126,7 @@ optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999)
 
 # Early stopping parameters
 patience = 5  # Number of epochs to wait after last improvement
-min_delta = 0.001  # Minimum change in the monitored quantity to qualify as an improvement
+min_delta = 0.0005  # Minimum change in the monitored quantity to qualify as an improvement
 best_val_loss = float('inf')
 patience_counter = 0
 

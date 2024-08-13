@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser(description="Train a ViT-Base model on chest X-
 parser.add_argument('--csv_file', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data/image_labels.csv', help='Path to the CSV file containing image paths and labels')
 parser.add_argument('--image_folder', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data/nih-chest-xray-dataset/balanced', help='Path to the folder containing images')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training and validation')
-parser.add_argument('--learning_rate', type=float, default=5e-4, help='Learning rate for the optimizer')
+parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate for the optimizer')
 parser.add_argument('--num_epochs', type=int, default=10, help='Number of epochs to train the model')
 parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for the DataLoader')
 parser.add_argument('--gpus', type=str, default='0', help='Comma-separated list of GPU IDs to use for training, e.g., "0,1,2"')
@@ -131,7 +131,7 @@ optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.999)
 
 # Early stopping parameters
 patience = 5  # Number of epochs to wait after last improvement
-min_delta = 0.001  # Minimum change in the monitored quantity to qualify as an improvement
+min_delta = 0.0005  # Minimum change in the monitored quantity to qualify as an improvement
 best_val_loss = float('inf')
 patience_counter = 0
 
