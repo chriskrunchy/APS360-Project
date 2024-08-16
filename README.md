@@ -48,7 +48,7 @@ To replicate our findings or use the Enhanced MultiLevelUNet for educational or 
 This project was a collaborative effort by Adam Roberge, Bill Jiang, Chris Kwon, and Mitchell Souliere-Lamb, under the guidance of our course instructors at the University of Toronto.
 
 ### Citation and References
-If you find this work useful, please consider citing our project. More detailed references and related works can be found in our [final project report](LINK_TO_FINAL_REPORT).
+If you find this work useful, please consider citing our project. More detailed references and related works can be found in our [final project report](APS360_Project_Final_Report.pdf).
 
 ---
 For more information, issues, or questions, please contact us through the repository issues or pull requests.
