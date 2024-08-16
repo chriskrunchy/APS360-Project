@@ -35,11 +35,21 @@ Our Enhanced MultiLevelUNet demonstrated superior performance over the baseline 
 ### Ethical Considerations
 We emphasize the use of our model as an assistive tool in medical diagnostics to support, not replace, professional radiological assessments.
 
-### Repository Contents
-- `models/`: Contains the code for the Enhanced MultiLevelUNet and baseline ResNet18 models.
-- `data/`: Scripts and tools used for data preprocessing and augmentation.
-- `results/`: Training and validation results, including accuracy metrics and loss graphs.
-- `utils/`: Utility scripts for data handling and processing.
+## Repository Contents
+- `ChestX-Ray/`: Contains all files and scripts related to chest X-ray classification.
+- `Data_processing_for_final_draft/`: Scripts for data preprocessing, augmentation, and setup for final model training.
+- `OCT/`: Code and resources for OCT (Optical Coherence Tomography) image analysis. This dataset was later abandoned. 
+- `basic-architectures/`: Basic architecture files for initial model setups and experiments.
+- `data/`: Directory for dataset storage and organization. Please follow data setup instructions to properly organize this directory.
+- `endoscopy/`: Resources and models specific to endoscopy image analysis.
+- `resnet/`: Customized ResNet architectures used in the project.
+- `unet-clf/`: U-Net models adapted for classification tasks.
+- `unet-seg/`: U-Net models designed for segmentation tasks.
+- `APS360_Project_Final_Report.pdf`: Detailed project report outlining the methodology, results, and conclusions.
+- `APS_Final_data_processing_classification...`: Additional scripts for data processing and classification.
+- `Final Presentation APS.pdf`: Presentation slides for the project summary and results.
+- `README.md`: Provides an overview of the project, setup instructions, and additional documentation.
+
 
 ### Contributions
 This project was a collaborative effort by Adam Roberge, Bill Jiang, Chris Kwon, and Mitchell Souliere-Lamb, under the guidance of our course instructors at the University of Toronto.
