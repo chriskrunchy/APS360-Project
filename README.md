@@ -41,9 +41,6 @@ We emphasize the use of our model as an assistive tool in medical diagnostics to
 - `results/`: Training and validation results, including accuracy metrics and loss graphs.
 - `utils/`: Utility scripts for data handling and processing.
 
-### Getting Started
-To replicate our findings or use the Enhanced MultiLevelUNet for educational or research purposes, please refer to the installation instructions and usage examples provided in the [setup guide](LINK_TO_SETUP_GUIDE).
-
 ### Contributions
 This project was a collaborative effort by Adam Roberge, Bill Jiang, Chris Kwon, and Mitchell Souliere-Lamb, under the guidance of our course instructors at the University of Toronto.
 
