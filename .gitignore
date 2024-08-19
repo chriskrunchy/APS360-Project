@@ -5,6 +5,7 @@ imnet_resnet50_scratch/timm_temp/
 checkpoints/
 *.pth
 data/
+data(progress_report)/
 nih_dataset/
 __pycache__/
 
