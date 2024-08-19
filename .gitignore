@@ -4,6 +4,6 @@ imnet_resnet50_scratch/timm_temp/
 .dumbo.json
 checkpoints/
 *.pth
-# *.pdf
 data/
+ChestX-Ray/data/nih-chest-xray-dataset/
 __pycache__/
