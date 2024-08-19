@@ -1,46 +1,63 @@
-# APS360-Project
-Group project for APS360: Applied Fundamentals of Deep Learning
+# APS360 Project - University of Toronto
+## Group 60 - Final Report: Enhanced MultiLevelUNet for Chest X-ray Classification
 
-# Architecture 1: U-Net Inspired Image Classification Architecture
+This repository houses our project for APS360: Applied Fundamentals of Deep Learning, which entails the development and evaluation of an advanced deep learning model for classifying chest X-ray images into various disease categories.
 
-## Overview
-This repository contains the implementation of a U-Net inspired deep learning model for image classification. The model architecture is adapted from the traditional U-Net model, which is primarily used for image segmentation tasks. Our adaptation modifies the U-Net architecture to make it suitable for classifying images into multiple categories.
+### Project Overview
+The field of medical imaging has greatly benefitted from the application of deep learning technologies. Our project focuses on leveraging these advancements to assist radiologists in diagnosing diseases more accurately and efficiently through an enhanced deep learning model capable of classifying chest X-ray images.
 
-## Model Architecture
-U-Net is renowned for its effectiveness in biomedical image segmentation due to its ability to capture spatial hierarchies for pixel-level predictions. Our adaptation, named `UNET_Classification`, modifies the original architecture to cater to image classification tasks by integrating global average pooling and a fully connected layer at the end of the network. This approach allows the model to leverage the spatial feature extraction capabilities of U-Net while providing robust feature summaries for classification.
+### Motivation
+The primary motivation for this project is to improve diagnostic accuracy for lung diseases using machine learning, which could be particularly beneficial in areas with a shortage of medical professionals.
 
-### Key Modifications
-- **Downsampling Path**: Captures context and reduces spatial dimensions, increasing the receptive field.
-- **Bottleneck**: This remains as the deepest part, aiming to extract the most abstract features.
-- **Upsampling Path**: Instead of restoring original dimensions, it integrates skip connections and reduces to a feature-rich representation suitable for classification.
-- **Global Average Pooling**: After upsampling, this layer reduces each feature map to a single value, effectively summarizing the spatial features.
-- **Fully Connected Layer**: Transforms the pooled features into final class scores for classification purposes.
+### Model Architecture: Enhanced MultiLevelUNet
+The Enhanced MultiLevelUNet, adapted from the traditional U-Net architecture, incorporates several modifications and optimizations to tailor it for chest X-ray classification:
 
-## Dataset
-The model is trained and evaluated on the [RSNA 2024 Lumbar Spine Degenerative Classification Challenge dataset](https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification) hosted on Kaggle. This competition focuses on the classification of spinal MRI scans into several degenerative categories, making it an excellent use case for our adapted U-Net model.
+- **Downsampling and Bottleneck**: Captures deep contextual information and abstract features.
+- **EfficientNet-Inspired Scaling**: Systematic scaling of network width, depth, and resolution enhances capacity and efficiency.
+- **Global Average Pooling and Fully Connected Layers**: Aggregate spatial features and translate them into class scores.
 
-### Dataset Details
-- **Images**: Spinal MRI scans.
-- **Labels**: Multiple degenerative categories of the lumbar spine.
-- **Objective**: To classify each MRI scan into the correct category based on visual degenerative features.
+#### Key Features
+- **Architecture based on U-Net and EfficientNet** innovations to optimize feature extraction and processing capabilities.
+- **Customized data handling** techniques to manage class imbalance and enhance model training efficiency.
+- **Utilization of advanced scaling techniques** to balance computational efficiency with robust pattern recognition capabilities.
 
-# Architecture 2: ResNet Inspired Image Classification Architecture
+### Dataset
+We employed the NIH Chest X-ray dataset, meticulously processing it to ensure high-quality data for training our models. The dataset comprises 85,113 X-ray images, balanced across various classes of lung diseases.
 
-## Overview
-This repository houses the implementation of a ResNet-inspired deep learning model specifically tailored for image classification tasks. The model leverages the deep residual learning framework to effectively handle the vanishing gradients problem, enabling the training of much deeper networks than was previously feasible.
+#### Data Processing Highlights
+- **Initial Filtering**: Focus on images with a single disease label.
+- **Class Balancing**: Address significant class imbalances through undersampling and oversampling.
+- **Augmentation Techniques**: Enhance generalization through methods like cropping, rotation, and color jittering.
 
-## Model Architecture
-Originally designed for image recognition, ResNet (Residual Network) uses shortcut connections or skip connections to skip one or more layers. Our adaptation, referred to as `ResNet_Classification`, modifies the conventional ResNet architecture to enhance its applicability for classifying images into multiple categories.
+### Results and Discussion
+Our Enhanced MultiLevelUNet demonstrated superior performance over the baseline ResNet18 model, achieving higher accuracy and efficiency in classifying chest X-rays. The model effectively learned and generalized from the training data, showcasing particularly strong performance in critical disease classifications.
 
-### Key Modifications
-- **Residual Blocks**: Enhanced to extract features while maintaining the network's depth, essential for learning complex patterns.
-- **Adaptive Pooling**: Placed before the final classification layer to ensure feature summarization is effective regardless of image dimensions.
-- **Classification Layer**: Transforms the pooled features into final class scores, adapting the network from its original image recognition task to a broader classification capability.
+### Ethical Considerations
+We emphasize the use of our model as an assistive tool in medical diagnostics to support, not replace, professional radiological assessments.
 
-## Dataset
-The adapted ResNet model is trained and validated using the [RSNA 2024 Lumbar Spine Degenerative Classification Challenge dataset](https://www.kaggle.com/competitions/rsna-2024-lumbar-spine-degenerative-classification) available on Kaggle. This dataset provides an excellent opportunity to apply deep learning for medical imaging classification.
+## Repository Contents
+- `ChestX-Ray/`: Contains all files and scripts related to chest X-ray classification.
+- `Data_processing_for_final_draft/`: Scripts for data preprocessing, augmentation, and setup for final model training.
+- `OCT/`: Code and resources for OCT (Optical Coherence Tomography) image analysis. This dataset was later abandoned. 
+- `basic-architectures/`: Basic architecture files for initial model setups and experiments.
+- `data/`: Directory for dataset storage and organization. Please follow data setup instructions to properly organize this directory.
+- `endoscopy/`: Resources and models specific to endoscopy image analysis.
+- `resnet/`: Customized ResNet architectures used in the project.
+- `unet-clf/`: U-Net models adapted for classification tasks.
+- `unet-seg/`: U-Net models designed for segmentation tasks.
+- `APS360_Project_Final_Report.pdf`: Detailed project report outlining the methodology, results, and conclusions.
+- `APS360_Final_Video.mp4`: A video presentation summarizing the project and showcasing key findings.
+- `APS_Final_data_processing_classification...`: Additional scripts for data processing and classification.
+- `Final Presentation APS.pdf`: Presentation slides for the project summary and results.
+- `README.md`: Provides an overview of the project, setup instructions, and additional documentation.
 
-### Dataset Details
-- **Images**: MRI scans of the lumbar spine.
-- **Labels**: Various degenerative conditions of the spine.
-- **Objective**: Accurately classify each scan into predefined categories based on the degenerative state.
+
+### Contributions
+This project was a collaborative effort by Adam Roberge, Bill Jiang, Chris Kwon, and Mitchell Souliere-Lamb, under the guidance of our course instructors at the University of Toronto.
+
+### Citation and References
+If you find this work useful, please consider citing our project. More detailed references and related works can be found in our [final project report](APS360_Project_Final_Report.pdf) and [final video](APS360_Final_Video_2.mp4)
+
+---
+For more information, issues, or questions, please contact us through the repository issues or pull requests.
+
