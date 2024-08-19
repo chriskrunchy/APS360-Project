@@ -56,7 +56,7 @@ We emphasize the use of our model as an assistive tool in medical diagnostics to
 This project was a collaborative effort by Adam Roberge, Bill Jiang, Chris Kwon, and Mitchell Souliere-Lamb, under the guidance of our course instructors at the University of Toronto.
 
 ### Citation and References
-If you find this work useful, please consider citing our project. More detailed references and related works can be found in our [final project report](APS360_Project_Final_Report.pdf) and [final video](APS360_Final_Video.mp4)
+If you find this work useful, please consider citing our project. More detailed references and related works can be found in our [final project report](APS360_Project_Final_Report.pdf) and [final video](APS360_Final_Video_2.mp4)
 
 ---
 For more information, issues, or questions, please contact us through the repository issues or pull requests.
