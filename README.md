@@ -1,5 +1,5 @@
 # APS360 Project - University of Toronto
-## Group 60 - Final Report: Enhanced MultiLevelUNet for Chest X-ray Classification
+## Group 60 - Final Report: Efficient MultiLevelUNet for Chest X-ray Classification
 
 This repository houses our project for APS360: Applied Fundamentals of Deep Learning, which entails the development and evaluation of an advanced deep learning model for classifying chest X-ray images into various disease categories.
 
@@ -9,8 +9,8 @@ The field of medical imaging has greatly benefitted from the application of deep
 ### Motivation
 The primary motivation for this project is to improve diagnostic accuracy for lung diseases using machine learning, which could be particularly beneficial in areas with a shortage of medical professionals.
 
-### Model Architecture: Enhanced MultiLevelUNet
-The Enhanced MultiLevelUNet, adapted from the traditional U-Net architecture, incorporates several modifications and optimizations to tailor it for chest X-ray classification:
+### Model Architecture: Efficient MultiLevelUNet
+The Efficient MultiLevelUNet, adapted from the traditional U-Net architecture, incorporates several modifications and optimizations to tailor it for chest X-ray classification:
 
 - **Downsampling and Bottleneck**: Captures deep contextual information and abstract features.
 - **EfficientNet-Inspired Scaling**: Systematic scaling of network width, depth, and resolution enhances capacity and efficiency.
@@ -30,7 +30,7 @@ We employed the NIH Chest X-ray dataset, meticulously processing it to ensure hi
 - **Augmentation Techniques**: Enhance generalization through methods like cropping, rotation, and color jittering.
 
 ### Results and Discussion
-Our Enhanced MultiLevelUNet demonstrated superior performance over the baseline ResNet18 model, achieving higher accuracy and efficiency in classifying chest X-rays. The model effectively learned and generalized from the training data, showcasing particularly strong performance in critical disease classifications.
+Our Efficient MultiLevelUNet demonstrated superior performance over the baseline ResNet18 model, achieving higher accuracy and efficiency in classifying chest X-rays. The model effectively learned and generalized from the training data, showcasing particularly strong performance in critical disease classifications.
 
 ### Ethical Considerations
 We emphasize the use of our model as an assistive tool in medical diagnostics to support, not replace, professional radiological assessments.
