@@ -5,5 +5,6 @@ imnet_resnet50_scratch/timm_temp/
 checkpoints/
 *.pth
 data/
-final_project/APS360-Project/ChestX-Ray/data/nih-chest-xray-dataset
+nih_dataset/
 __pycache__/
+
