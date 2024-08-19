@@ -58,6 +58,11 @@ This project was a collaborative effort by Adam Roberge, Bill Jiang, Chris Kwon,
 ### Citation and References
 If you find this work useful, please consider citing our project. More detailed references and related works can be found in our [final project report](APS360_Project_Final_Report.pdf) and [final video](APS360_Final_Video_2.mp4)
 
+## License
+
+This project is licensed under the MIT License. See the [`LICENSE`](LICENSE) file for more details.
+
 ---
 For more information, issues, or questions, please contact us through the repository issues or pull requests.
+
 
