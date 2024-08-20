@@ -22,8 +22,8 @@ warnings.filterwarnings("ignore", message="The default value of the antialias pa
 
 # Argument parser for command line options
 parser = argparse.ArgumentParser(description="Train a ResNet model on chest X-ray images")
-parser.add_argument('--csv_file', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data/image_labels.csv', help='Path to the CSV file containing image paths and labels')
-parser.add_argument('--image_folder', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data/nih-chest-xray-dataset/balanced', help='Path to the folder containing images')
+parser.add_argument('--csv_file', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/data_processing/image_labels.csv', help='Path to the CSV file containing image paths and labels')
+parser.add_argument('--image_folder', type=str, default='/home/adam/final_project/APS360-Project/ChestX-Ray/nih_dataset/nih-chest-xray-dataset/balanced', help='Path to the folder containing images')
 parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training and validation')
 parser.add_argument('--learning_rate', type=float, default=1e-5, help='Learning rate for the optimizer')
 parser.add_argument('--num_epochs', type=int, default=100, help='Number of epochs to train the model')
@@ -101,14 +101,14 @@ train_data, temp_data = train_test_split(data, test_size=0.3, stratify=data['Cla
 val_data, test_data = train_test_split(temp_data, test_size=0.5, stratify=temp_data['Class Name'], random_state=42)  # 15% val, 15% test
 
 # Save the train, validation, and test splits
-train_data.to_csv('resnet34_train_data.csv', index=False)
-val_data.to_csv('resnet34_val_data.csv', index=False)
-test_data.to_csv('resnet34_test_data.csv', index=False)
+train_data.to_csv('csv/resnet34_train_data.csv', index=False)
+val_data.to_csv('csv/resnet34_val_data.csv', index=False)
+test_data.to_csv('csv/resnet34_test_data.csv', index=False)
 
 # Create dataset objects
-train_dataset = ChestXrayDataset(csv_file='resnet34_train_data.csv', image_folder=image_folder, transform=train_transform)
-val_dataset = ChestXrayDataset(csv_file='resnet34_val_data.csv', image_folder=image_folder, transform=test_transform)
-test_dataset = ChestXrayDataset(csv_file='resnet34_test_data.csv', image_folder=image_folder, transform=test_transform)
+train_dataset = ChestXrayDataset(csv_file='csv/resnet34_train_data.csv', image_folder=image_folder, transform=train_transform)
+val_dataset = ChestXrayDataset(csv_file='csv/resnet34_val_data.csv', image_folder=image_folder, transform=test_transform)
+test_dataset = ChestXrayDataset(csv_file='csv/resnet34_test_data.csv', image_folder=image_folder, transform=test_transform)
 
 # Create data loaders with num_workers
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
